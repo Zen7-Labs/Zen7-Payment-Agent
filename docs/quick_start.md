@@ -115,7 +115,7 @@ Use **$\text{uv sync}$** to install all required packages listed in the project'
 Securely add your keys and server configuration corresponding to a **`.env`** file in the project root:
 
 > **🔗 Blockchain Setup Required:** Before configuring the `.env` file, ensure you have completed the blockchain environment setup. Refer to the **[Blockchain Environment Setup Guide](blockchain_environment_setup.md)** for detailed instructions on obtaining RPC URLs, private keys, and testnet tokens.
-
+  - Rename .env.example to .env
   - Update the file named **`.env`** (replace the placeholder values):
     ```dotenv
     # .env

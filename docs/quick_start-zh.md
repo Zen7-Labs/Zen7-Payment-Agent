@@ -115,7 +115,7 @@ cd Zen7-Payment-Agent
 在项目根目录创建并配置 **`.env`** 文件，安全地填入密钥与服务器信息：
 
 > **🔗 区块链配置前置：** 在编辑 `.env` 之前，请先完成区块链环境配置。参见 **[区块链环境搭建指南](blockchain_environment_setup.md)** 获取 RPC 地址、私钥与测试网代币。
-
+  - 将 .env.example 重命名为 .env
   - 更新 **`.env`** 文件（替换占位内容）：
     ```dotenv
     # .env

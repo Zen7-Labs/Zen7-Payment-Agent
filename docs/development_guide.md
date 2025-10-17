@@ -879,18 +879,16 @@ except Exception as e:
 ### A. Related Documentation
 
 - [Quick Start Guide](quick_start.md) - Fast setup and first run
-- [Environment Setup](environment_setup.md) - Detailed environment configuration
-- [Code Structure](code_structure.md) - Architecture deep dive (Chinese)
 - [Blockchain Setup](blockchain_environment_setup.md) - Testnet configuration
-- [Deployment Guide](deployment_guide.md) - Production deployment instructions
+- [Deployment Guide](development_guide.md) - Production deployment instructions
 
 ### B. Useful Resources
 
-- [Google ADK Documentation](https://github.com/google/agent-development-kit)
+- [Google ADK Documentation](https://google.github.io/adk-docs/)
 - [FastAPI Documentation](https://fastapi.tiangolo.com/)
 - [Web3.py Documentation](https://web3py.readthedocs.io/)
 - [EIP-712 Specification](https://eips.ethereum.org/EIPS/eip-712)
-- [USDC Contract Documentation](https://developers.circle.com/stablecoins/docs)
+- [USDC Contract Documentation](https://developers.circle.com/stablecoins/usdc-contract-addresses)
 
 ### C. Common Issues and Solutions
 

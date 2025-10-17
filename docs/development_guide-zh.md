@@ -878,18 +878,16 @@ except Exception as e:
 ### A. 相关文档
 
 - [Quick Start Guide](quick_start.md) - 快速上手与首次运行
-- [Environment Setup](environment_setup.md) - 详细环境配置
-- [Code Structure](code_structure.md) - 架构深入解析（中文）
 - [Blockchain Setup](blockchain_environment_setup.md) - 测试网配置
 - [Deployment Guide](deployment_guide.md) - 生产部署说明
 
 ### B. 实用资源
 
-- [Google ADK Documentation](https://github.com/google/agent-development-kit)
+- [Google ADK Documentation](https://google.github.io/adk-docs/)
 - [FastAPI Documentation](https://fastapi.tiangolo.com/)
 - [Web3.py Documentation](https://web3py.readthedocs.io/)
 - [EIP-712 Specification](https://eips.ethereum.org/EIPS/eip-712)
-- [USDC Contract Documentation](https://developers.circle.com/stablecoins/docs)
+- [USDC Contract Documentation](https://developers.circle.com/stablecoins/usdc-contract-addresses)
 
 ### C. 常见问题与解决方案
 
