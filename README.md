@@ -15,19 +15,6 @@ Zen7 Payment Agent adopts a multi-agent collaborative architecture, supporting b
   <img src="/docs/assets/architecture.png" alt="Zen7 Payment Agent Architecture" width="800">
 </div>
 
-## Related Video Resources
-
-### Zen7 Payment Agent Introduction Video
-[![Zen7 Payment Agent Introduction Video](https://your-video-link)
-*Learn about the core concepts and technical architecture of the decentralized payment agent protocol*
-
-### Zen7 Payment Agent Technical Case Study
-[![Agent Payments Tech Talk](https://youtu.be/HM0qvINyL0g)
-*In-depth analysis of technical implementation and application scenarios for agent payments*
-
----
-
-
 ## Navigating the Repository
 
 This repository contains the complete implementation of Zen7 Payment Agent, showcasing the core components and architectural design based on the Zen7 Payment Agent (Decentralized Payment Agent) protocol.
