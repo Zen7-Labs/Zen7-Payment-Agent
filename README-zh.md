@@ -14,19 +14,6 @@ Zen7 Payment Agent 采用多Agent协同架构，支持A2A以及MCP协议，支�
   <img src="/docs/assets/architecture.png" alt="Zen7 Payment Agent Architecture" width="800">
 </div>
 
-## 相关视频资源
-
-### Zen7 Payment Agent 介绍视频
-[![Zen7 Payment Agent Introduction Video](assets/zen7-intro-thumbnail.png)](https://your-video-link)
-*了解去中心化支付代理协议的核心概念与技术架构*
-
-### Zen7 Payment Agent 技术案例
-[![Agent Payments Tech Talk](assets/tech-talk-thumbnail.png)](https://your-podcast-link)
-*深度解析智能体支付的技术实现与应用场景*
-
----
-
-
 ## 仓库导航指引（Navigating the Repository）
 
 本仓库包含了 Zen7 Payment Agent 的完整实现，展示了基于 Zen7 Payment Agent（去中心化支付代理）协议的核心组件和架构设计。
