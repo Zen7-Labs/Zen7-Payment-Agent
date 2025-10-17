@@ -52,7 +52,6 @@ This design provides developers with a flexible testing environment while ensuri
 - [Blockchain Environment Configuration](docs/blockchain_environment_setup.md) - Blockchain environment setup and test wallet preparation
 ### Development Guide
 - [Development Guide](docs/development_guide.md) - Developer extension and customization guide
-- [Code Structure Documentation](docs/code_structure.md) - Detailed code architecture description
 
 ## Security Considerations
 
