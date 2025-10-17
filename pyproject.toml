@@ -1,0 +1,25 @@
+[project]
+name = "zen7-payment-agent"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "a2a-sdk>=0.3.7",
+    "eth-account==0.13.7",
+    "eth-tester>=0.10.0b4",
+    "fastapi[standard]>=0.116.1",
+    "fastmcp>=2.12.4",
+    "google-adk>=1.14.0",
+    "py-env>=0.0.1",
+    "py-evm>=0.12.1b1",
+    "pytz>=2025.2",
+    "web3>=7.10.0",
+]
+
+[[tool.uv.index]]
+url = "https://mirrors.aliyun.com/pypi/simple"
+default = true
+
+[[tool.uv.index]]
+url = "https://pypi.org/simple"
