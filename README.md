@@ -81,7 +81,7 @@ If you find Zen7 Payment Agent helpful in your research or project, please cite 
 ```bibtex
 @misc{zen7paymentagent,
   author = {Zen7 Labs},
-  title = {Zen7 Payment Agent: AI-Powered Blockchain Payment Service},
+  title = {Zen7 Payment Agent: A Dedicated Payment Network for Every Intelligent Agent.},
   year = {2025},
   publisher = {GitHub},
   url = {https://github.com/Zen7-Labs/Zen7-Payment-Agent}
