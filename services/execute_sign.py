@@ -36,22 +36,51 @@ USDC_NAME = ACTIVE_TOKEN
 USDC_VERSION = "2"
 CHAIN_ID = CHAIN_ID  # Sepolia
 
+# Chain Configuration Dictionary
+CHAIN_CONFIGS = {
+    "sepolia": {
+        "chain_id": CHAIN_ID,
+        "chain_id_hex": CHAIN_ID_HEX,
+        "rpc_url": CHAIN_RPC_URL,  # Using SEPOLIA_RPC_URL
+        "name": "Sepolia"
+    },
+    "basesepolia": {
+        "chain_id": CHAIN_ID,
+        "chain_id_hex": CHAIN_ID_HEX,
+        "rpc_url": CHAIN_RPC_URL,  # Using BASE_SEPOLIA_RPC_URL
+        "name": "Base Sepolia"
+    }
+}
+
+# Token Configuration Dictionary (Multi-chain × Multi-currency)
+TOKEN_CONFIGS = {
+    "sepolia": {
+        "USDC": {
+            "address": Web3.to_checksum_address(USDC_ADDRESS),
+            "name": "USDC",
+            "version": "2"
+        },
+        "DAI": {
+            "address": Web3.to_checksum_address(SEPOLIA_DAI_ADDRESS),
+            "name": "DAI",
+            "version": "1"
+        }
+    },
+    "basesepolia": {
+        "USDC": {
+            "address": Web3.to_checksum_address(USDC_ADDRESS),
+            "name": "USDC",
+            "version": "2"
+        }
+    }
+}
+
 # Spender (backend wallet) from your code
 SPENDER = Web3.to_checksum_address(os.getenv("SPENDER_WALLET_ADDRESS"))
 
 # Owner (the signer). For local signing only: provide a test private key.
 # WARNING: Never use a real user's key here in production.
 OWNER_PRIVATE_KEY = os.getenv("OWNER_PK") or OWNER_PRIVATE_KEY
-
-# USDC/DAI (Sepolia) based on env (initial defaults; DAI will refine after w3 init)
-if ACTIVE_TOKEN == "DAI":
-    if not SEPOLIA_DAI_ADDRESS:
-        raise ValueError("ACTIVE_TOKEN=DAI but SEPOLIA_DAI_ADDRESS is not configured")
-    USDC_ADDRESS = Web3.to_checksum_address(SEPOLIA_DAI_ADDRESS)
-    USDC_NAME = "DAI"
-    USDC_VERSION = os.getenv("DAI_VERSION", "1")  # DAI is usually 1
-
-# Sepolia
 
 # Validate private key format
 if not OWNER_PRIVATE_KEY:
@@ -66,12 +95,19 @@ if len(OWNER_PRIVATE_KEY) != 66:
 
 logger.info(f"Using private key: {OWNER_PRIVATE_KEY[:10]}...{OWNER_PRIVATE_KEY[-10:]}")
 
-SEPOLIA_RPC = SEPOLIA_PARAMS["rpcUrls"][0]
-w3 = Web3(Web3.HTTPProvider(SEPOLIA_RPC))
-
-if ACTIVE_TOKEN == "DAI":
+def get_token_name_onchain(token_address: str, w3: Web3) -> str:
+    """
+    Retrieves the token name from the chain (used for EIP-712 domain)
+    
+    Args:
+        token_address: Token contract address
+        w3: Web3 instance
+        
+    Returns:
+        The token name on the chain
+    """
     try:
-        dai_name_abi = [{
+        name_abi = [{
             "constant": True,
             "inputs": [],
             "name": "name",
@@ -80,12 +116,13 @@ if ACTIVE_TOKEN == "DAI":
             "stateMutability": "view",
             "type": "function"
         }]
-        dai_contract = w3.eth.contract(address=USDC_ADDRESS, abi=dai_name_abi)
-        onchain_name = dai_contract.functions.name().call()
+        contract = w3.eth.contract(address=token_address, abi=name_abi)
+        onchain_name = contract.functions.name().call()
         if isinstance(onchain_name, str) and onchain_name:
-            USDC_NAME = onchain_name
+            return onchain_name
     except Exception:
         pass
+    return None
 
 # ---------- Helpers ----------
 def to_uint256(n: int) -> int:
@@ -98,23 +135,71 @@ def get_deadline_ts(deadline_iso_str: str) -> int:
     dt = Web3.to_datetime(deadline_iso_str)  # supports many formats; if unsure, parse manually
     return int(dt.timestamp())
 
-def fetch_nonce(owner_addr: str) -> int:
+def fetch_nonce(owner_addr: str, token_address: str, w3: Web3) -> int:
     # nonces(address) selector: keccak256("nonces(address)") -> 0x7ecebe00
     selector = "0x7ecebe00"
     data = selector + owner_addr[2:].rjust(64, "0")
-    res = w3.eth.call({"to": USDC_ADDRESS, "data": data}, "latest")
+    res = w3.eth.call({"to": token_address, "data": data}, "latest")
     return int(res.hex(), 16)
 
-def fetch_usdc_balance(owner_addr: str) -> int:
+def fetch_token_balance(owner_addr: str, token_address: str, w3: Web3) -> int:
     # balanceOf(address) selector: 0x70a08231
     selector = "0x70a08231"
     data = selector + owner_addr[2:].rjust(64, "0")
-    res = w3.eth.call({"to": USDC_ADDRESS, "data": data}, "latest")
+    res = w3.eth.call({"to": token_address, "data": data}, "latest")
     return int(res.hex(), 16)  # smallest unit, 6 decimals for USDC
 
-def sign(budget: int , deadline: int):
-    # ---------- Config ----------
-    # SEPOLIA_RPC = "https://sepolia.infura.io/v3/<YOUR_INFURA_KEY>"
+def sign(budget: int , deadline: int, network: str = "sepolia", token: str = "USDC"):
+    """
+    Generates the EIP-2612 Permit signature (multi-chain supported)
+    
+    Args:
+        deadline: Expiration timestamp
+        network: Network name (sepolia or basesepolia)
+        token: Token symbol (USDC or DAI)
+        
+    Returns:
+        (signature, r, s, v) tuple
+    """
+
+    network = network.lower()
+    token = token.upper()
+
+    # Validate network support
+    if network not in CHAIN_CONFIGS:
+        raise ValueError(f"Unsupported network: {network}. Supported: {list(CHAIN_CONFIGS.keys())}")
+    
+    chain_config = CHAIN_CONFIGS[network]
+    CHAIN_ID = chain_config["chain_id"]
+    
+    # Validate RPC URL configuration
+    if not chain_config["rpc_url"]:
+        raise ValueError(f"{network.upper()}_RPC_URL not configured. Please check .env")
+    
+    # Create Web3 instance for the corresponding network
+    w3 = Web3(Web3.HTTPProvider(chain_config["rpc_url"]))
+    
+    # Validate token support on the network
+    if network not in TOKEN_CONFIGS:
+        raise ValueError(f"No token configuration for network: {network}")
+    
+    if token not in TOKEN_CONFIGS[network]:
+        supported_tokens = list(TOKEN_CONFIGS[network].keys())
+        raise ValueError(f"Token {token} not supported on {network}. Supported: {supported_tokens}")
+    
+    token_config = TOKEN_CONFIGS[network][token]
+    if not token_config["address"]:
+        raise ValueError(f"{token} address not configured for {network}. Please check .env")
+    
+    TOKEN_ADDRESS = token_config["address"]
+    TOKEN_NAME = token_config["name"]
+    TOKEN_VERSION = token_config["version"]
+    
+    # For DAI, prioritize the on-chain name (to avoid domain mismatch)
+    if token == "DAI":
+        onchain_name = get_token_name_onchain(TOKEN_ADDRESS, w3)
+        if onchain_name:
+            TOKEN_NAME = onchain_name
 
     acct = Account.from_key(OWNER_PRIVATE_KEY)
     OWNER = acct.address  # derived from private key
@@ -127,19 +212,27 @@ def sign(budget: int , deadline: int):
     # ---------- Mirror your UI's value scaling ----------
     # UI budget is a string of "display units" where display = USDC * 100000
     # So on-chain smallest unit (6 decimals) is: floor((budget/100000) * 1e6)
-    scaled_budget_usdc = float(budget_ui) / 100000.0
-    value_smallest = int(scaled_budget_usdc * 1_000_000)  # USDC has 6 decimals
+    scaled_budget = float(budget_ui) / 100000.0
+    value_smallest = int(scaled_budget * 1_000_000)  # USDC has 6 decimals
 
+    # Optional sanity checks (Dynamically display network information)
+    network_name = chain_config["name"]  # Get network name
+    
+    # Print detailed network and contract information
+    logger.info(f">>> Checking Balance - Network: {network_name}, Chain ID: {CHAIN_ID}")
+    logger.info(f">>> {token} Contract Address: {TOKEN_ADDRESS}")
+    logger.info(f">>> Owner Address: {OWNER}")
+    
     # Optional sanity checks similar to your JS:
     eth_balance_wei = w3.eth.get_balance(OWNER)
     if eth_balance_wei <= 0:
         logger.warning("Warning: Owner has 0 Sepolia ETH for gas (only matters if sending a tx).")
 
-    usdc_balance = fetch_usdc_balance(OWNER)
-    if usdc_balance < value_smallest:
-        logger.warning(f"Warning: Insufficient USDC. Have {(usdc_balance/1e6):.2f}, need {(value_smallest/1e6):.2f}")
+    token_balance = fetch_token_balance(OWNER, TOKEN_ADDRESS, w3)
+    if token_balance < value_smallest:
+        logger.warning(f"Warning: Insufficient USDC. Have {(token_balance/1e6):.2f}, need {(value_smallest/1e6):.2f}")
 
-    nonce = fetch_nonce(OWNER)
+    nonce = fetch_nonce(OWNER, TOKEN_ADDRESS, w3)
 
     # current = datetime.now()
     # updates = current + timedelta(seconds=expiry)     
@@ -148,10 +241,10 @@ def sign(budget: int , deadline: int):
     
     # ---------- Build EIP-712 typed data ----------
     domain = {
-        "name": USDC_NAME,
-        "version": USDC_VERSION,
-        "chainId": CHAIN_ID,  # Ensure this is an integer
-        "verifyingContract": USDC_ADDRESS,
+        "name": TOKEN_NAME,
+        "version": TOKEN_VERSION,
+        "chainId": CHAIN_ID,  # Ensure it's an integer
+        "verifyingContract": TOKEN_ADDRESS,
     }
 
     types = {

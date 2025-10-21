@@ -5,7 +5,7 @@ import asyncio
 
 from pydantic import BaseModel
 # Assuming 'create_sepolia_handler' is defined in this module path
-from services.non_custodial.transfer_handler import create_sepolia_handler
+from services.non_custodial.transfer_handler import create_handler
 
 class ExecutePermitRequest(BaseModel):
     owner: str
@@ -15,13 +15,15 @@ class ExecutePermitRequest(BaseModel):
     v: int
     r: str
     s: str
-    network: str = "sepolia"
+    token: str = "USDC"  # Token symbol (USDC or DAI)
+    network: str = "sepolia"  # Reserved for future multi-chain support
 
 
 class TransferFromRequest(BaseModel):
     owner: str
     amount: float
-    network: str = "sepolia"
+    token: str = "USDC"  # Token symbol (USDC or DAI)
+    network: str = "sepolia"  # Reserved for future multi-chain support
 
 async def execute_permit(permit_request: ExecutePermitRequest):
     """Execute EIP-2612 permit authorization to establish USDC allowance relationship"""
@@ -34,7 +36,7 @@ async def execute_permit(permit_request: ExecutePermitRequest):
         logger.info(f"Signature: v={permit_request.v}, r={permit_request.r}, s={permit_request.s}")
         
         # Get transfer handler
-        handler = create_sepolia_handler()
+        handler = create_handler(network=permit_request.network, token=permit_request.token)
         
         if not handler:
             raise Exception("Transfer handler not available")
@@ -142,7 +144,7 @@ async def transfer_from(req: TransferFromRequest):
         logger.info(f"Network: {req.network}")
 
         
-        handler = create_sepolia_handler()
+        handler = create_handler(network=req.network, token=req.token)
 
         if not handler:
             raise Exception("Transfer handler not available")
@@ -218,12 +220,19 @@ async def transfer_from(req: TransferFromRequest):
         logger.error(f" transferFrom execution failed: {str(e)}")
         raise Exception(f"transferFrom execution failed: {str(e)}")
 
-async def get_transaction_status(tx_hash: str):
-    """Query transaction status"""
+async def get_transaction_status(tx_hash: str, network: str = "sepolia", token: str = "USDC"):
+    """
+    Query transaction status (multi-chain support)
+
+    Args:
+        tx_hash: Transaction hash
+        network: Network name (default: sepolia)
+        token: Token symbol (used to retrieve the correct handler, default: USDC)
+    """
     try:
         logger.info(f" Querying transaction status: {tx_hash}")
     
-        handler = create_sepolia_handler()
+        handler = create_handler(network=network, token=token)
         
         if not handler:
             raise Exception("Transfer handler not available")

@@ -19,10 +19,10 @@ from .constants import ErrorCode
 if CHAIN_SELECTION == "SEPOLIA":
     CHAIN_ID = os.getenv("SEPOLIA_CHAIN_ID")
     CHAIN_ID_HEX = os.getenv("SEPOLIA_CHAIN_ID_HEX")
-    CHAIN_RPC_URL = os.getenv("SEPOLIA_CHAIN_RPC_URL")
+    CHAIN_RPC_URL = os.getenv("SEPOLIA_RPC_URL")
     USDC_ADDRESS = os.getenv("SEPOLIA_USDC_ADDRESS")
 elif CHAIN_SELECTION == "BASE_SEPOLIA":
     CHAIN_ID = os.getenv("BASE_SEPOLIA_CHAIN_ID")
     CHAIN_ID_HEX = os.getenv("BASE_SEPOLIA_CHAIN_ID_HEX")
-    CHAIN_RPC_URL = os.getenv("BASE_SEPOLIA_CHAIN_RPC_URL")
+    CHAIN_RPC_URL = os.getenv("BASE_SEPOLIA_RPC_URL")
     USDC_ADDRESS = os.getenv("BASE_SEPOLIA_USDC_ADDRESS")
