@@ -57,8 +57,8 @@ from .sub_agents.order_agent import order_agent
 
 
 payment_agent = SequentialAgent(
-    name="host_agent",
-    description="Host agent for zen7 payment service",
+    name="PaymentAgentPipeline",
+    description="Payment agent pipeline for zen7 payment service",
     sub_agents=[payer_agent, settlement_agent, payee_agent]
 )
 
