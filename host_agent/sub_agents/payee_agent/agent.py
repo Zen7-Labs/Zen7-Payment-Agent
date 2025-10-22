@@ -29,7 +29,7 @@ payee_agent = LlmAgent(
     
     Your capabilities are:
     - Use tool 'receive_notification' to receive notification when settlement has finished.
-    - SHOULD keep the order number in return message in order to help user get order detail.
+    - SHOULD keep the order number in return message in order to help user futher to get order detail.
    
     **Interaction History:**
     <interaction_history>
