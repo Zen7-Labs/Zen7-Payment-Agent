@@ -1,9 +1,10 @@
-from google.adk.agents import SequentialAgent
+from google.adk.agents import SequentialAgent, Agent
+from google.adk.tools import FunctionTool, ToolContext
 
 from .sub_agents.payer_agent import payer_agent
 from .sub_agents.settlement_agent import settlement_agent
 from .sub_agents.payee_agent import payee_agent
-
+from .sub_agents.order_agent import order_agent
 # You are the primary host agent for zen7 payment service.
 
 # Your role is to help attendees with their questions and direct them to the appropriate specialized agent.
@@ -55,8 +56,37 @@ from .sub_agents.payee_agent import payee_agent
 # DO NOT return 'interaction_history' within message
 
 
-host_agent = SequentialAgent(
+payment_agent = SequentialAgent(
     name="host_agent",
     description="Host agent for zen7 payment service",
     sub_agents=[payer_agent, settlement_agent, payee_agent]
+)
+
+def initialize_payment_or_query_orders(input_message: str, tool_context: ToolContext) -> str:
+    if "initialize payment" in input_message:
+        print(f"Tool: Detected initializing payment, transfer to payment agent.")
+        tool_context.actions.transfer_to_agent = "PaymentAgentPipeline"
+        return "Transferring to the payment agent..."
+    elif "query order" in input_message:
+        print(f"Tool: Detected querying order, transfer to order agent.")
+        tool_context.actions.transfer_to_agent = "QueryOrderAgent"
+        return "Transferring to the order agent..."
+    else:
+        return f"Processed query: '{input_message}'. No further action needed"
+
+escalation_tool = FunctionTool(func=initialize_payment_or_query_orders)
+
+host_agent = Agent(
+    name="GeneralPaymentAgent",
+    model="gemini-2.0-flash-lite",
+    instruction="""
+    You are a helpful assistant help user initialize payment or query orders.
+    You capabilities are:
+    - Use tool 'initialize_payment_or_query_orders' by identifying intent of the input_message for which indicate initializing a payment or querying order issues.
+    - If the input_message mentioned about both order number, spend amount, budget amount, expiration date and currency that indicate to initialize a payment.
+    - If the input_message ONLY mentioned order number that indicate to query order.
+    - Immediate make decision, tranfer to the target agent and automatical start the process, DO NOT make any confirmation.
+    """,
+    tools=[initialize_payment_or_query_orders],
+    sub_agents=[payment_agent, order_agent]
 )
