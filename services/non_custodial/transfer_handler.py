@@ -17,12 +17,20 @@ CHAIN_CONFIGS = {
     "sepolia": {
         "chain_id": CHAIN_ID,  # Ethereum Sepolia testnet
         "rpc_url": CHAIN_RPC_URL,
-        "name": "Sepolia"
+        "name": "Sepolia",
+        "native_currency": "ETH"
     },
     "basesepolia": {
         "chain_id": CHAIN_ID,  # Base Sepolia testnet
         "rpc_url": CHAIN_RPC_URL,
-        "name": "Base Sepolia"
+        "name": "Base Sepolia",
+        "native_currency": "ETH"
+    },
+    "bnbtestnet": {
+        "chain_id": CHAIN_ID,  # BNB Chain Testnet
+        "rpc_url": CHAIN_RPC_URL,
+        "name": "BNB Chain Testnet",
+        "native_currency": "BNB"
     }
 }
 
@@ -48,6 +56,14 @@ TOKEN_CONFIGS = {
             "name": "USDC",
             "version": "2",
             "decimals": 6
+        },
+        "bnbtestnet": {
+            "USDC": {
+                "address": USDC_ADDRESS,
+                "name": "USD Coin",
+                "version": "1",
+                "decimals": 6
+            }
         }
     }
 }
@@ -354,16 +370,21 @@ class TransferHandler:
                 "error": str(e),
                 "message": "Failed to check allowance"
             }
-
-    async def get_eth_balance(self, address: str) -> float:
-        """Gets the ETH balance of the specified address"""
+        
+    async def get_native_balance(self, address: str) -> float:
+        """Get the native token balance (ETH/BNB, etc.) of the specified address"""
         try:
             balance_wei = self.w3.eth.get_balance(address)
-            balance_eth = self.w3.from_wei(balance_wei, 'ether')
-            return float(balance_eth)
+            balance_native = self.w3.from_wei(balance_wei, 'ether')
+            return float(balance_native)
         except Exception as e:
-            logger.info(f" Failed to get ETH balance: {e}")
+            native_currency = self.chain_config.get("native_currency", "ETH")
+            logger.error(f" Failed to get {native_currency} balance: {e}")
             return 0.0
+
+    async def get_eth_balance(self, address: str) -> float:
+        """[DEPRECATED] Use get_native_balance instead. Retained for backward compatibility"""
+        return await self.get_native_balance(address)
 
     async def execute_permit(
         self, 
@@ -397,8 +418,9 @@ class TransferHandler:
             logger.info(f"Deadline: {deadline}")
             
             # Check the spender address's ETH balance
-            spender_eth_balance = await self.get_eth_balance(spender)
-            logger.info(f">>> Spender ETH Balance: {spender_eth_balance} ETH")
+            native_currency = self.chain_config.get("native_currency", "ETH")
+            spender_balance = await self.get_native_balance(spender)
+            logger.info(f">>> Spender {native_currency} Balance: {spender_balance} {native_currency}")
             
             # Convert address format to checksum address
             owner_checksum = Web3.to_checksum_address(owner)

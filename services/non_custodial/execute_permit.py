@@ -72,14 +72,15 @@ async def execute_permit(permit_request: ExecutePermitRequest):
             else:
                 raise Exception(f"Permit simulation failed: {error_msg}")
         
-        # Check spender address's ETH balance
+        # Check spender address's ETH/BNB etc. balance
         try:
-            eth_balance = await handler.get_eth_balance(permit_request.spender)
-            logger.info(f" Spender ETH Balance (Network: {permit_request.network}): {eth_balance} ETH")
-            if eth_balance < 0.0001:
-                logger.warning(f"  Warning: Spender ETH balance is too low ({eth_balance} ETH), may not be enough to pay for gas fees")
+            native_balance = await handler.get_native_balance(permit_request.spender)
+            native_currency = handler.chain_config.get("native_currency", "ETH")
+            logger.info(f" Spender {native_currency} Balance (Network: {permit_request.network}): {native_balance} {native_currency}")
+            if native_balance < 0.0001:
+                logger.warning(f"  Warning: Spender {native_currency} balance is too low ({native_balance} {native_currency}), may not be enough to pay for gas fees")
         except Exception as e:
-            logger.warning(f"  Could not retrieve ETH balance: {e}")
+            logger.warning(f"  Could not retrieve {native_currency} balance: {e}")
         
         # Call the actual permit execution method (submit and poll for confirmation before returning)
         result = await handler.execute_permit(

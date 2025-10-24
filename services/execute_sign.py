@@ -42,13 +42,22 @@ CHAIN_CONFIGS = {
         "chain_id": CHAIN_ID,
         "chain_id_hex": CHAIN_ID_HEX,
         "rpc_url": CHAIN_RPC_URL,  # Using SEPOLIA_RPC_URL
-        "name": "Sepolia"
+        "name": "Sepolia",
+         "native_currency": "ETH"
     },
     "basesepolia": {
         "chain_id": CHAIN_ID,
         "chain_id_hex": CHAIN_ID_HEX,
         "rpc_url": CHAIN_RPC_URL,  # Using BASE_SEPOLIA_RPC_URL
-        "name": "Base Sepolia"
+        "name": "Base Sepolia",
+        "native_currency": "ETH"
+    },
+    "bnbtestnet": {
+        "chain_id": CHAIN_ID,
+        "chain_id_hex": CHAIN_ID_HEX,
+        "rpc_url": CHAIN_RPC_URL,
+        "name": "BNB Chain Testnet",
+        "native_currency": "BNB"
     }
 }
 
@@ -71,6 +80,13 @@ TOKEN_CONFIGS = {
             "address": Web3.to_checksum_address(USDC_ADDRESS),
             "name": "USDC",
             "version": "2"
+        }
+    },
+    "bnbtestnet": {
+        "USDC": {
+            "address": Web3.to_checksum_address(USDC_ADDRESS),
+            "name": "USD Coin",
+            "version": "1"
         }
     }
 }
@@ -217,6 +233,7 @@ def sign(budget: int , deadline: int, network: str = "sepolia", token: str = "US
 
     # Optional sanity checks (Dynamically display network information)
     network_name = chain_config["name"]  # Get network name
+    native_currency = chain_config.get("native_currency", "ETH")
     
     # Print detailed network and contract information
     logger.info(f">>> Checking Balance - Network: {network_name}, Chain ID: {CHAIN_ID}")
@@ -224,9 +241,9 @@ def sign(budget: int , deadline: int, network: str = "sepolia", token: str = "US
     logger.info(f">>> Owner Address: {OWNER}")
     
     # Optional sanity checks similar to your JS:
-    eth_balance_wei = w3.eth.get_balance(OWNER)
-    if eth_balance_wei <= 0:
-        logger.warning("Warning: Owner has 0 Sepolia ETH for gas (only matters if sending a tx).")
+    balance_wei = w3.eth.get_balance(OWNER)
+    if balance_wei <= 0:
+        logger.warning(f"Warning: Owner has 0 {native_currency} for gas (only matters if sending a tx).")
 
     token_balance = fetch_token_balance(OWNER, TOKEN_ADDRESS, w3)
     if token_balance < value_smallest:

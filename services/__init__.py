@@ -26,3 +26,8 @@ elif CHAIN_SELECTION == "BASE_SEPOLIA":
     CHAIN_ID_HEX = os.getenv("BASE_SEPOLIA_CHAIN_ID_HEX")
     CHAIN_RPC_URL = os.getenv("BASE_SEPOLIA_RPC_URL")
     USDC_ADDRESS = os.getenv("BASE_SEPOLIA_USDC_ADDRESS")
+elif CHAIN_SELECTION == "BNB":
+    CHAIN_ID = os.getenv("BNBChain_Testnet_CHAIN_ID")
+    CHAIN_ID_HEX = os.getenv("BNBChain_Testnet_CHAIN_ID_HEX")
+    CHAIN_RPC_URL = os.getenv("BNBChain_Testnet_RPC_URL")
+    USDC_ADDRESS = os.getenv("BNBChain_Testnet_USDC_ADDRESS")
