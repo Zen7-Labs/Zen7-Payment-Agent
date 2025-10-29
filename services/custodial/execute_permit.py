@@ -1,9 +1,19 @@
 import asyncio
+from services import CHAIN_ID
+
 from log import logger
 
 from pydantic import BaseModel
 # Assuming 'create_sepolia_handler' is defined in this module path
 from services.custodial.transfer_handler import create_sepolia_handler
+
+from dao.model import (
+    SettlementBatch, SettlementBatchStatus, SettlementDetail, SettlementDetailStatus,
+    SourceEvent, FinalityStatus
+)
+from dao.app import add_settlement_batch
+
+from datetime import datetime
 
 class ExecutePermitRequest(BaseModel):
     owner: str
@@ -117,6 +127,8 @@ async def execute_permit(permit_request: ExecutePermitRequest):
 
 async def transfer_from(req: TransferFromRequest):
     """Use the established allowance to transfer USDC from owner to the backend wallet address (the spender itself)."""
+    settlement_batch = SettlementBatch()
+    settlement_batch_detail = SettlementDetail()
     try:
         logger.info(" Executing transferFrom...")
         logger.info(f"Owner: {req.owner}")
@@ -128,11 +140,36 @@ async def transfer_from(req: TransferFromRequest):
 
         if not handler:
             raise Exception("Transfer handler not available")
+        
+        settlement_batch.chain_id = CHAIN_ID
+        settlement_batch.merchant_id = "zen7"
+        settlement_batch.tenant_id = req.owner
+        settlement_batch.asset_id = f"ASSET_{CHAIN_ID}"
+        
+        current = datetime.now()
+        settlement_batch.asset_id = f"ASSET_{int(current.timestamp())}"
 
+        settlement_batch.check_date = current
+        settlement_batch.period_start = current
+
+        settlement_batch_detail.chain_id = CHAIN_ID
+        settlement_batch_detail.intent_id = f"INTENT_{int(current.timestamp())}"
+        
         # Locally simulate transferFrom call to catch errors in advance
         try:
             owner_checksum = handler.w3.to_checksum_address(req.owner)
             spender_checksum = handler.account.address
+            
+            settlement_batch.payee_address = spender_checksum
+            settlement_batch.total_amount = req.amount
+            settlement_batch.settlement_status = SettlementBatchStatus.pending_payout
+            settlement_batch.finance_confirm_status = FinalityStatus.pending
+
+            settlement_batch_detail.payer_address = owner_checksum
+            settlement_batch_detail.payee_address = spender_checksum
+            settlement_batch_detail.gross_amount = req.amount
+            settlement_batch_detail.settlement_status = SettlementDetailStatus.pending
+
             # callStatic transferFrom
             handler.usdc_contract.functions.transferFrom(
                 owner_checksum,
@@ -151,12 +188,21 @@ async def transfer_from(req: TransferFromRequest):
         if result.get("success"):
             # Poll for transaction status until confirmed or timed out (every 2 seconds, max approx 60 seconds)
             tx_hash = result.get("tx_hash")
+
+            settlement_batch_detail.tx_hash = tx_hash
+            settlement_batch_detail.settlement_status = SettlementDetailStatus.pending
+            settlement_batch_detail.source_event = SourceEvent.transfer_completed
+
             max_attempts = 30
             interval_seconds = 2
             for _ in range(max_attempts):
                 try:
                     poll = await handler.get_transaction_status(tx_hash)
                     if poll.get("success") and poll.get("status") == "confirmed":
+                        settlement_batch.settlement_status = SettlementBatchStatus.released
+                        settlement_batch_detail.fee_amount = poll["details"]["gas_used"] / 10000
+                        settlement_batch_detail.net_amount = settlement_batch_detail.gross_amount - settlement_batch_detail.fee_amount
+                        settlement_batch_detail.settlement_status = SettlementDetailStatus.released
                         return {
                             "success": True,
                             "txHash": tx_hash,
@@ -166,6 +212,10 @@ async def transfer_from(req: TransferFromRequest):
                             "details": result.get("details", {})
                         }
                     if not poll.get("success") and poll.get("status") == "failed":
+                        settlement_batch.settlement_status = SettlementBatchStatus.failed
+                        settlement_batch_detail.fee_amount = poll["details"]["gas_used"] / 10000
+                        settlement_batch_detail.net_amount = settlement_batch_detail.gross_amount - settlement_batch_detail.fee_amount
+                        settlement_batch_detail.settlement_status = SettlementDetailStatus.failed
                         return {
                             "success": False,
                             "txHash": tx_hash,
@@ -190,6 +240,13 @@ async def transfer_from(req: TransferFromRequest):
     except Exception as e:
         logger.error(f" transferFrom execution failed: {str(e)}")
         raise Exception(f"transferFrom execution failed: {str(e)}")
+    finally:
+        current = datetime.now()
+        settlement_batch.period_end = current
+        settlement_batch.updated_at = current
+        settlement_batch_detail.settled_at = current
+        settlement_batch_detail.source_event = SourceEvent.settlement_completed
+        add_settlement_batch(settlement_batch, settlement_batch_detail)
 
 async def get_transaction_status(tx_hash: str):
     """Query transaction status"""

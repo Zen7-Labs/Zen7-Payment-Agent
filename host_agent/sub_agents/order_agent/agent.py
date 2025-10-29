@@ -10,9 +10,11 @@ def get_order(order_number: str, tool_context: ToolContext) -> dict[str, any]:
     if order_number:
         try:
             order_item = get_order_item(order_number)
+            order_info = json.dumps(order_item)
+            logger.info(f"Get order info: {order_info} by order_number: {order_number}")
             return {
                 "status": "success",
-                "message": json.dumps(order_item)
+                "message": order_info
             }
         except Exception as e:
             return {

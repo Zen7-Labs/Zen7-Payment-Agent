@@ -11,9 +11,12 @@ dependencies = [
     "fastapi[standard]>=0.116.1",
     "fastmcp>=2.12.4",
     "google-adk>=1.14.0",
+    "psycopg[binary]>=3.2.12",
     "py-env>=0.0.1",
     "py-evm>=0.12.1b1",
     "pytz>=2025.2",
+    "sqlalchemy[postgresql]>=2.0.43",
+    "sqlmodel>=0.0.27",
     "web3>=7.10.0",
 ]
 
