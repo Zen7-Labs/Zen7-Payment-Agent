@@ -12,48 +12,15 @@ from services.blockchain_errors import BlockchainErrorClassifier
 
 load_dotenv()
 
-settlement_mode = os.getenv("SETTLEMENT_MODE")
+from task_manager.task_scoped_manager import TaskScopedServiceManager
 
-if settlement_mode == "CUSTODIAL":
-    from services.custodial.execute_permit import ExecutePermitRequest, execute_permit, TransferFromRequest, transfer_from
-if settlement_mode == "NONE_CUSTODIAL":
-    from services.non_custodial.execute_permit import ExecutePermitRequest, execute_permit, TransferFromRequest, transfer_from
-
-spender_wallet_address = os.getenv("SPENDER_WALLET_ADDRESS")
 notification_url = os.getenv("NOTIFICATION_URL")
-
-async def permit_and_transfer(owner_wallet_address, budget_amount, spend_amount, deadline, v, r, s):
-    permit_request = ExecutePermitRequest(
-        owner=owner_wallet_address,  # Retrieve from "Recovered signer" in execute_sign.py
-        spender=spender_wallet_address,  # Retrieve SPENDER from execute_sign.py
-        value=budget_amount,  # 0.01 USDC (6 decimals) = 10000
-        deadline=deadline,  # Use deadline from execute_sign.py (expires in 3 days)
-        v=v,  # Use v value from execute_sign.py
-        r=r,  # Use r value from execute_sign.py
-        s=s,  # Use s value from execute_sign.py
-        network="sepolia"
-    )
-    logger.info("Executing permit authorization...")
-    result = await execute_permit(permit_request)
-    logger.info("Permit executed successfully!")
-    logger.info("Result:", result)
-    
-    logger.info("Executing transferFrom...")
-    transfer_request = TransferFromRequest(
-        owner=owner_wallet_address,  # Same owner as in permit
-        amount=spend_amount,  # 0.01 USDC (6 decimals)
-        network="sepolia"
-    )
-
-    result = await transfer_from(transfer_request)
-    logger.info("TransferFrom executed successfully!")
-    logger.info("Result:", result)
 
 def receive_payer_payment(tool_context: ToolContext) -> dict[str, any]:
     """
     Receive payment request from payer agent
     """
-    spend_amount = tool_context.state.get("spend_amount")
+    spend_amount = tool_context.state.get("user:spend_amount")
     if spend_amount:
         logger.info(f"Received spend amount: {spend_amount} from payer agent.")
     else:
@@ -63,7 +30,7 @@ def receive_payer_payment(tool_context: ToolContext) -> dict[str, any]:
             "message": "None of payer spend amount received."
         }
 
-    budget = tool_context.state.get("budget")
+    budget = tool_context.state.get("user:budget")
     if budget:
         logger.info(f"Received budget: {budget} from payer agent.")
     else:
@@ -73,7 +40,7 @@ def receive_payer_payment(tool_context: ToolContext) -> dict[str, any]:
             "message": "None of payer budget received."
         }
     
-    expiration_date = tool_context.state.get("expiration_date")
+    expiration_date = tool_context.state.get("user:expiration_date")
     if expiration_date:
         logger.info(f"Received payer expiration date: {expiration_date} from payer agent.")
     else:
@@ -83,7 +50,7 @@ def receive_payer_payment(tool_context: ToolContext) -> dict[str, any]:
             "message": "None of payer expiration date received."
         }
 
-    signature = tool_context.state.get("signature")
+    signature = tool_context.state.get("user:signature")
     if signature:
         logger.info(f"Received signature: {signature} from payer agent.")
     else:
@@ -93,7 +60,7 @@ def receive_payer_payment(tool_context: ToolContext) -> dict[str, any]:
             "message": "None of payer signature received."
         }
     
-    current_interaction_history = tool_context.state.get("interaction_history")
+    current_interaction_history = tool_context.state.get("user:interaction_history")
 
     new_interaction_history = current_interaction_history.copy()
     tool_context.state["user:interaction_history"] = new_interaction_history
@@ -115,47 +82,9 @@ async def settle_payment(tool_context: ToolContext) -> dict[str, any]:
     budget = tool_context.state["user:budget"]
     expiration_date = tool_context.state.get("user:expiration_date")
     currency = tool_context.state.get("user:currency")
-    signature = tool_context.state.get("user:signature")
-
+    chain = tool_context.state.get("user:chain")
     deadline = tool_context.state.get("user:deadline")
-    if deadline:
-        logger.info(f"Received deadline: {deadline} from payer agent.")
-    else:
-        logger.error("None of payer deadline received.")
-        return {
-            "status": "failed",
-            "message": "None of payer deadline received."
-        }
     
-    r = tool_context.state.get("user:r")
-    if r:
-        logger.info(f"Received r: {r} from payer agent.")
-    else:
-        logger.error("None of payer r received.")
-        return {
-            "status": "failed",
-            "message": "None of payer r received."
-        }
-    
-    s = tool_context.state.get("user:s")
-    if s:
-        logger.info(f"Received s: {s} from payer agent.")
-    else:
-        logger.error("None of payer s received.")
-        return {
-            "status": "failed",
-            "message": "None of payer s received."
-        }
-    
-    v = tool_context.state.get("user:v")
-    if v:
-        logger.info(f"Received v: {v} from payer agent.")
-    else:
-        logger.error("None of payer v received.")
-        return {
-            "status": "failed",
-            "message": "None of payer v received."
-        }
     owner_wallet_address = tool_context.state.get("owner_wallet_address")
     if owner_wallet_address:
         logger.info(f"Received owner wallet address: {owner_wallet_address} from context.")
@@ -163,10 +92,9 @@ async def settle_payment(tool_context: ToolContext) -> dict[str, any]:
         owner_wallet_address = os.getenv("OWNER_WALLET_ADDRESS")
         logger.error("None of owner wallet address received from context instead from env")
 
-    logger.info(f"Permit and transfer with owner wallet address: {owner_wallet_address} spend amount: {spend_amount}, deadline: {deadline}, v: {v}, r: {r}, s: {s}")
+    logger.info(f"Permit and transfer with owner wallet address: {owner_wallet_address} spend amount: {spend_amount}, deadline: {deadline}")
     try:
-        result = await permit_and_transfer(owner_wallet_address, budget, spend_amount, deadline, v, r, s)
-        logger.info(f"Result of permit and transfer: {result}")
+        await TaskScopedServiceManager.execute_permit_and_transfer(owner_wallet_address)
     except Exception as e:
         error_str = str(e)
         logger.error(f"Failed to settlement for permit_and_transfer: {error_str}")
@@ -190,7 +118,8 @@ async def settle_payment(tool_context: ToolContext) -> dict[str, any]:
             user_id=owner_wallet_address, 
             spend_amount=spend_amount, 
             budget=budget, 
-            currency=currency, 
+            currency=currency,
+            chain=chain,
             status="FAILED", 
             status_message=error_message, 
             deadline=deadline
@@ -207,21 +136,6 @@ async def settle_payment(tool_context: ToolContext) -> dict[str, any]:
         if res.ok:
             logger.info(f"Notify settlement message by url: {notification_url} with status code: {res.status_code}")
         
-        initial_state = {
-            "user:order_number": "",
-            "user:spend_amount": 0.0,
-            "user:budget": 0.0,
-            "user:expiration_date": "",
-            "user:currency": "",
-            "user:signature": "",
-            "user:value": 0.0,
-            "user:r": "",
-            "user:s": "",
-            "user:v": ""
-        }
-        tool_context.state.update(initial_state)
-        logger.info(f"Context state has been reset to initial value.")
-
         return {
             "status": "failed",
             "error_code": error_code,
@@ -234,11 +148,10 @@ async def settle_payment(tool_context: ToolContext) -> dict[str, any]:
     logger.info(f"\tBudget: {budget}")
     logger.info(f"\tExpiration date: {expiration_date}")
     logger.info(f"\tCurrency: {currency}")
-    logger.info(f"\tSignature: {signature}")
+    logger.info(f"\tChain: {chain}")
+    settlement_message = f"Settlement info - order number: {order_number}, spend amount: {spend_amount}, budget: {budget}, expiration date: {expiration_date}, currency: {currency}, chain: {chain}"
     
-    settlement_message = f"Settlement info - order number: {order_number}, spend amount: {spend_amount}, budget: {budget}, expiration date: {expiration_date}, currency: {currency}"
-    
-    add_or_update_order_item(order_number=order_number, user_id=owner_wallet_address, spend_amount=spend_amount, budget=budget, currency=currency, status="SUCCESS", deadline=deadline)
+    add_or_update_order_item(order_number=order_number, user_id=owner_wallet_address, spend_amount=spend_amount, budget=budget, currency=currency, chain=chain, status="SUCCESS", deadline=deadline)
 
     res = requests.post(notification_url, json={"status": True, "order_number": order_number})
     if res.ok:

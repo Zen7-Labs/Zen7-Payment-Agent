@@ -20,11 +20,11 @@ def add_payout_instruction(settlement_batch: SettlementBatch, payout_instruction
         session.refresh(payout_instruction)
         logger.info(f"Added settlement batch: {settlement_batch} with payout instruction: {payout_instruction}")
 
-def add_or_update_order_item(order_number: str, user_id: str, spend_amount: float, budget: float, currency: str, deadline: int, status: str, status_message: str = "") -> dict[str, any]:
+def add_or_update_order_item(order_number: str, user_id: str, spend_amount: float, budget: float, currency: str, chain: str, deadline: int, status: str, status_message: str = "") -> dict[str, any]:
     with Session(engine) as session:
         order_item = OrderItem(
             order_number=order_number, user_id=user_id, spend_amount=spend_amount,
-            budget=budget, currency=currency, deadline=deadline, 
+            budget=budget, currency=currency, chain=chain, deadline=deadline, 
             status=status.lower(), status_message=status_message
         )
         existing_order_item = session.exec(

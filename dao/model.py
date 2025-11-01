@@ -108,6 +108,7 @@ class OrderItem(SQLModel, table=True):
     spend_amount: Decimal = Field(default=Decimal(0), sa_column=Column(NUMERIC(precision=78, scale=0)))
     budget: Decimal = Field(default=Decimal(0), sa_column=Column(NUMERIC(precision=78, scale=0)))
     currency: str = Field(sa_column=Column(VARCHAR(length=50)))
+    chain: str = Field(sa_column=Column(VARCHAR(length=50)))
     deadline: int = Field(nullable=False)
     status: Optional[OrderStatus] = Field(sa_column=Column(PG_ENUM(OrderStatus), nullable=False))
     status_message: str = Field(sa_column=Column(TEXT))

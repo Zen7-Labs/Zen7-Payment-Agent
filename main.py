@@ -19,7 +19,8 @@ initial_state = {
     "spend_amount": 0,
     "budget": 0,
     "expiration_date": "",
-    "currency": "",
+    "currency": "USDC",
+    "chain": "sepolia",
     "sign_info": {},
     "owner_wallet_address": ""
 }

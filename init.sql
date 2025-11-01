@@ -72,7 +72,8 @@ CREATE TABLE orders (
     user_id VARCHAR(128),
     spend_amount NUMERIC(78, 0) DEFAULT 0, -- Default value is handled by SQLModel/SQLAlchemy but good to include
     budget NUMERIC(78, 0) DEFAULT 0,
-    currency VARCHAR(50),
+    currency VARCHAR(50) DEFAULT 'USDC',
+    chain VARCHAR(50) DEFAULT 'sepolia',
     deadline INTEGER NOT NULL, -- Corresponds to int and nullable=False
     status order_status_enum NOT NULL, -- Uses the defined ENUM type and is NOT NULL
     status_message TEXT,

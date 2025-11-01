@@ -4,7 +4,7 @@ from google.adk.agents import LlmAgent
 from google.adk.tools import ToolContext
 
 from datetime import datetime
-from services.execute_sign import sign
+from task_manager.task_scoped_manager import TaskScopedServiceManager
 from utils import is_valid_date_format, convert_to_local_timezone
 
 from dotenv import load_dotenv
@@ -14,7 +14,7 @@ load_dotenv()
 
 from services.order.order_service import add_or_update_order_item
 
-def create_payment(order_number: str, spend_amount: float, budget: float, expiration_date: str, currency: str, tool_context: ToolContext) -> dict[str, any]:
+async def create_payment(order_number: str, spend_amount: float, budget: float, expiration_date: str, currency: str, chain: str, tool_context: ToolContext) -> dict[str, any]:
     """
     Create payment for payer.
     """
@@ -98,6 +98,18 @@ def create_payment(order_number: str, spend_amount: float, budget: float, expira
             "message": "Payment currency is unset"
         }
     
+    if chain:
+        if payment_info and "chain" in payment_info:
+            logger.info(f"Got chain: {chain} from payment_info")
+            chain = payment_info["chain"]
+        logger.info(f"Payment chain is: {chain}")
+        tool_context.state["user:chain"] = chain
+    else:
+        logger.error("Payment chain is unset")
+        return {
+            "status": "failed",
+            "message": "Payment chain is unset"
+        }    
     deadline_time = datetime.strptime(expiration_date, "%Y-%m-%d").replace(hour=0, minute=0, second=0, microsecond=0)
     deadline = 0
     timezone = tool_context.state.get("timezone")
@@ -108,6 +120,8 @@ def create_payment(order_number: str, spend_amount: float, budget: float, expira
     else:
         deadline = int(deadline_time.timestamp())
 
+    tool_context.state["user:deadline"] = deadline
+
     owner_wallet_address = tool_context.state.get("owner_wallet_address")
     if owner_wallet_address:
         logger.info(f"Received owner wallet address: {owner_wallet_address} from context.")
@@ -115,37 +129,26 @@ def create_payment(order_number: str, spend_amount: float, budget: float, expira
         owner_wallet_address = os.getenv("OWNER_WALLET_ADDRESS")
         logger.info("None of owner wallet address received from context instead from env")
 
-    add_or_update_order_item(order_number=order_number, user_id=owner_wallet_address, spend_amount=spend_amount, budget=budget, currency=currency, status="PENDING", status_message="", deadline=deadline)
+    add_or_update_order_item(order_number=order_number, user_id=owner_wallet_address, spend_amount=spend_amount, budget=budget, currency=currency, chain=chain, status="PENDING", status_message="", deadline=deadline)
 
     sign_info = tool_context.state.get("sign_info", {})
     logger.info(f"Sign_info from context: {sign_info}")
-    signature, r, s, v = None, None, None, None
+    
+    payload = {
+        "budget": budget,
+        "deadline": deadline,
+        "network": chain,
+        "token": currency,
+        "spend_amount": spend_amount
+    }
     if sign_info:
-        signature = sign_info["signature"]
-        r = sign_info["r"]
-        s = sign_info["s"]
-        v = sign_info["v"]
-    else:
-        signature, r, s, v = sign(budget, deadline)
-        
-    logger.info(f"Sign info - signature: {signature}, r: {r}, s: {s}, v: {v}")
+        payload.update(sign_info)
 
-    tool_context.state["user:deadline"] = deadline
-    tool_context.state["user:signature"] = signature
-    tool_context.state["user:value"] = spend_amount
-    tool_context.state["user:r"] = r
-    tool_context.state["user:s"] = s
-    tool_context.state["user:v"] = v
-    logger.info(f"Created payer payment signature: {signature} and set to context.")
-    logger.info(f"=> deadline: {deadline} set to context")
-    logger.info(f"=> value: {spend_amount} set to context")
-    logger.info(f"=> r: {r} and set to context.")
-    logger.info(f"=> s: {s} and set to context.")
-    logger.info(f"=> v: {v} and set to context.")
+    await TaskScopedServiceManager.execute_sign(wallet_address=owner_wallet_address, payload=payload)
 
     return {
         "status": "success",
-        "message": f"Created payer payment signature: {signature} and set to context."
+        "message": f"Created payer payment signature and set payload to context."
     }
 
 payer_agent = LlmAgent(
@@ -155,10 +158,10 @@ payer_agent = LlmAgent(
     instruction="""
     You are the payer agent for the zen7 payment to handle payment issues.
     
-    Your role is to help users create payment based on order number, spend amount, budget, expiration date and currency for USDC or DAI.
+    Your role is to help users create payment based on order number, spend amount, budget, expiration date, currency and chain for USDC or DAI.
     
     Your responsibility is to
-        - Create the payment by asking for order number, spend amount, budget, expiration date and currency for USDC or DAI for the payment authorization.
+        - Create the payment by asking for order number, spend amount, budget, expiration date, currency for USDC or DAI and chain for the payment authorization.
     
     Please make sure the payer agent to the settlement agent is a continuation step:
         - DO NOT give any confirmation, CONTINUE to invoke settlement agent and proceed settlement for this payment.
@@ -170,6 +173,7 @@ payer_agent = LlmAgent(
     budget: {budget}
     expiration date: {expiration_date}
     currency: {currency}
+    chain: {chain}
       
     **Interaction History:**
     <interaction_history>
