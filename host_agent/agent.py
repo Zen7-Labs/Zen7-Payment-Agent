@@ -5,6 +5,7 @@ from .sub_agents.payer_agent import payer_agent
 from .sub_agents.settlement_agent import settlement_agent
 from .sub_agents.payee_agent import payee_agent
 from .sub_agents.order_agent import order_agent
+from .sub_agents.allowance_agent import allowance_agent
 # You are the primary host agent for zen7 payment service.
 
 # Your role is to help attendees with their questions and direct them to the appropriate specialized agent.
@@ -68,9 +69,13 @@ def initialize_payment_or_query_orders(input_message: str, tool_context: ToolCon
         tool_context.actions.transfer_to_agent = "PaymentAgentPipeline"
         return "Transferring to the payment agent..."
     elif "query order" in input_message:
-        print(f"Tool: Detected querying order, transfer to order agent.")
+        print(f"Tool: Detected querying order or get allowance, will transfer to order agent.")
         tool_context.actions.transfer_to_agent = "QueryOrderAgent"
         return "Transferring to the order agent..."
+    elif "get allowance" in input_message:
+        print(f"Tool: Detected getting allowance, will transfer to allowance agent.")
+        tool_context.actions.transfer_to_agent = "QueryAllowanceAgent"
+        return "Transferring to the allowance agent..."
     else:
         return f"Processed query: '{input_message}'. No further action needed"
 
@@ -82,11 +87,12 @@ host_agent = Agent(
     instruction="""
     You are a helpful assistant help user initialize payment or query orders.
     You capabilities are:
-    - Use tool 'initialize_payment_or_query_orders' by identifying intent of the input_message for which indicate initializing a payment or querying order issues.
+    - Use tool 'initialize_payment_or_query_orders' by identifying intent of the input_message for which indicate initializing a payment, querying order or getting allowance issues.
     - If the input_message mentioned about both order number, spend amount, budget amount, expiration date, currency and chain that indicate to initialize a payment.
     - If the input_message ONLY mentioned order number that indicate to query order.
+    - If the input_message ONLY mentioned getting allowance that indicate to get allowance.
     - Immediate make decision, tranfer to the target agent and automatical start the process, DO NOT make any confirmation.
     """,
     tools=[initialize_payment_or_query_orders],
-    sub_agents=[payment_agent, order_agent]
+    sub_agents=[payment_agent, order_agent, allowance_agent]
 )
