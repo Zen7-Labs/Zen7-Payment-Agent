@@ -41,9 +41,10 @@ async def get_allowance(owner_wallet_address: str, tool_context: ToolContext) ->
         result = await handler.check_allowance(owner_address=wallet_address)
         return {
             "status": "success",
-            "message": json.dumps({
-                "allowance": result["allowance"]
-            })
+            "message": {
+                "allowance": result["allowance"],
+                "owner_wallet_address": result["owner"]
+            }
         }
     return {
         "status": "failed",
@@ -57,7 +58,13 @@ allowance_agent = Agent(
         Your goal is help user get allowance by owner wallet address.
 
         Your responsibilites are:
-        - Use tool 'get_allowance' to get allowance by owner wallet address, MUST in JSON as return format e.g {"allowance": <allowance>}.
+        - Use tool 'get_allowance' to get allowance by owner wallet address, MUST return in JSON format.
+          e.g. 
+          {
+            "allowance": <allowance>,
+            "owner_wallet_address": <owner>
+          }
+          
     """,
     tools=[get_allowance]
 )

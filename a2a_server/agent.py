@@ -15,7 +15,7 @@ zen7_payment_server_base_url = f"http://{zen7_payment_server_host}:{zen7_payment
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def proceed_payment_and_settlement_and_order_details(content: str, tool_context: ToolContext) -> dict[str, any] | str | None:
+def proceed_payment_or_settlement_or_order_or_allowance_details(content: str, tool_context: ToolContext) -> dict[str, any] | str | None:
     if content in ["quit", "exit"]:
         return {
             "status": "success",
@@ -46,12 +46,11 @@ process_with_content_agent = Agent(
     model="gemini-2.0-flash-lite",
     description="Process by invoking tool with provided detail info",
     instruction="""
-    Your goal is to ALWAYS USE tool 'proceed_payment_and_settlement_and_order_details' to CONVEY ANY input messages.
+    Your goal is to ALWAYS USE tool 'proceed_payment_or_settlement_or_order_or_allowance_details' to CONVEY ANY input messages.
 
     ***Core capabilities***
-    1. Do not modify content submitted to the tool "proceed_payment_and_settlement_and_order_details"
-    2. The result of the tool "proceed_payment_and_settlement_and_order_details" MUST BE RETURNED AS IS
-    3. The returned content SHOULD contain the order number if the response has provided.
+    1. Do not modify content submitted to the tool "proceed_payment_or_settlement_or_order_or_allowance_details"
+    2. The return message MUST be returned as its PRIMITIVE CONTENT AND PATTERN
     """,
-    tools=[proceed_payment_and_settlement_and_order_details]
+    tools=[proceed_payment_or_settlement_or_order_or_allowance_details]
 )
