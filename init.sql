@@ -66,6 +66,16 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
+DO $$ BEGIN
+    CREATE TYPE audit_event_type_enum AS ENUM( 
+      'intent_created', 'permit_signed',
+      'transfer_completed', 'payment_settled', 
+      'funds_escrowed', 'funds_released', 
+      'transaction_failed', 'dispute_initiated', 
+      'policy_blocked');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
 CREATE TABLE orders (
     orders_id SERIAL PRIMARY KEY, -- SQLModel's default for primary_key=True and int
     order_number VARCHAR(128),
@@ -281,3 +291,75 @@ CREATE TABLE IF NOT EXISTS onchain_transfer_bill (
     tenant_id TEXT
 );
 COMMENT ON TABLE onchain_transfer_bill IS 'Raw On-chain Bill: Standardized ERC-20/Native Transfer Records';
+
+-- Business Intent (Off-chain Primary Key)
+CREATE TABLE IF NOT EXISTS intent (
+  intent_id TEXT PRIMARY KEY, -- Business Intent ID (Externally Generated)
+  chain_id TEXT NOT NULL, -- CAIP-2
+  asset_id TEXT NOT NULL, -- CAIP-19
+  payer_address VARCHAR(128) NOT NULL,
+  payee_address VARCHAR(128) NOT NULL,
+  amount NUMERIC(78,0) NOT NULL, -- Amount (Smallest Unit)
+  token_decimals INT NOT NULL, -- Token Decimals
+  intent_deadline TIMESTAMPTZ, -- Intent Deadline (UTC)
+  terms_hash TEXT, -- Terms Hash
+  status TEXT, -- Optional: Status (Business Side)
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
+
+COMMENT ON TABLE intent IS 'Business Intent: The starting point for the system''s expected accounts, off-chain primary key';
+
+-- Audit Event (System-side Fact Table): Permit/Transfer/Settlement etc.
+CREATE TABLE IF NOT EXISTS audit_event (
+  event_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  intent_id TEXT NOT NULL,
+  chain_id TEXT NOT NULL,
+  asset_id TEXT NOT NULL,
+  event_type audit_event_type_enum NOT NULL, -- Event Type
+  -- On-chain Dimensions
+  tx_hash TEXT,
+  -- Transaction Hash (Transfer/Release, etc.)
+  block_number BIGINT,
+  confirmations INT,
+  finality_status finality_status_enum,
+  from_address VARCHAR(128),
+  to_address VARCHAR(128),
+  amount NUMERIC(78, 0),
+  -- Amount (Smallest Unit)
+  token_decimals INT,
+  -- Permit Dimensions
+  owner_address VARCHAR(128),
+  spender_address VARCHAR(128),
+  permit_nonce NUMERIC(78, 0),
+  value NUMERIC(78, 0),
+  signature_hash TEXT,
+  -- Business and Time
+  metadata JSONB default NULL,
+  -- Event Time: On-chain takes block time; Off-chain takes generation time
+  timestamp TIMESTAMPTZ NOT NULL,
+  -- Additional Context (Optional)
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+COMMENT ON TABLE audit_event IS 'Audit Event: System-side per-transaction facts (Intent/Permit/Transfer/Settlement/Exception)';
+COMMENT ON COLUMN audit_event.event_type IS 'Event Type (see audit_event_type_enum)';
+
+-- Idempotency and Retrieval Indexes
+CREATE UNIQUE INDEX IF NOT EXISTS ux_audit_event_idempotent ON audit_event (intent_id, chain_id, asset_id, event_type);
+CREATE INDEX IF NOT EXISTS idx_audit_event_txhash ON audit_event(tx_hash);
+CREATE INDEX IF NOT EXISTS idx_audit_event_type_ts ON audit_event (event_type, timestamp);
+CREATE INDEX IF NOT EXISTS idx_audit_event_chain_asset ON audit_event(chain_id, asset_id);
+
+CREATE TABLE IF NOT EXISTS custody_wallet_balance_snapshot (
+  snapshot_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  wallet_address VARCHAR(128) NOT NULL,
+  chain_id TEXT NOT NULL,
+  asset_id TEXT NOT NULL,
+  block_number BIGINT,
+  balance NUMERIC(78, 0) NOT NULL,
+  -- Balance (Smallest Unit)
+  as_of_time TIMESTAMPTZ NOT NULL,
+  -- Snapshot Time (UTC)
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(wallet_address, chain_id, asset_id, as_of_time)
+);

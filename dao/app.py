@@ -1,7 +1,11 @@
 from log import logger
 from sqlmodel import Session, select
 from .database import engine
-from .model import OrderItem, SettlementBatch, SettlementDetail, PayoutInstruction
+from .model import (
+    OrderItem, SettlementBatch, 
+    SettlementDetail, PayoutInstruction,
+    AuditEvent, Intent
+)
 from datetime import datetime
 
 def add_settlement_batch(settlement_batch: SettlementBatch, settlement_detail: SettlementDetail):
@@ -72,3 +76,14 @@ def get_order_list_by_user(user_id: str) -> list[dict[str, any]]:
                 results.append(order.model_dump(mode="json"))
             return results
         return None
+    
+def add_intent_event(intent: Intent, audit_event: AuditEvent):
+    with Session(engine) as session:
+        logger.info(f"Adding intent event: {intent}")
+        audit_event.audit_event = intent
+        session.add(audit_event)
+        session.commit()
+        session.refresh(audit_event)
+        return audit_event.model_dump(mode="json")
+
+        

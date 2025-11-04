@@ -11,7 +11,8 @@ from sqlalchemy.dialects.postgresql import (
     NUMERIC,
     DATE,
     TEXT,
-    SMALLINT
+    SMALLINT,
+    JSONB
 )
 from sqlalchemy import Column
 
@@ -99,6 +100,17 @@ class FeeType(str, Enum):
     percent = "percent"
     flat = "flat"
     network = "network"
+
+class AuditEventType(str, Enum):
+    intent_created = "intent_created"
+    permit_signed = "permit_signed"
+    transfer_completed = "transfer_completed"
+    payment_settled = "payment_settled"
+    funds_escrowed = "funds_escrowed"
+    funds_released = "funds_released"
+    transaction_failed = "transaction_failed"
+    dispute_initiated = "dispute_initiated"
+    policy_blocked = "policy_blocked"
 
 class OrderItem(SQLModel, table=True):
     __tablename__ = "orders"
@@ -283,6 +295,7 @@ class CheckStatusInfo(SQLModel, table=True):
     created_at: datetime = Field(sa_column=Column(TIMESTAMP(timezone=True), default=datetime.now()))
 
 class CheckAccountError(SQLModel, table=True):
+    __tablename__ = "check_account_error"
     error_id: Optional[uuid.UUID] = Field(
         default=None,
         primary_key=True,
@@ -301,6 +314,7 @@ class CheckAccountError(SQLModel, table=True):
     tenant_id: str = Field(sa_column=Column(TEXT))
 
 class OnchainTransferBill(SQLModel, table=True):
+    __tablename__ = "onchain_transfer_bill"
     bill_id: Optional[uuid.UUID] = Field(
         default=None,
         primary_key=True,
@@ -321,3 +335,72 @@ class OnchainTransferBill(SQLModel, table=True):
     token_decimals: int = Field(nullable=False)
     timestamp: datetime = Field(sa_column=Column(TIMESTAMP(timezone=True), nullable=False))
     tenant_id: str = Field(sa_column=Column(TEXT))
+
+class Intent(SQLModel, table=True):
+    __tablename__ = "intent"
+    intent_id: Optional[str] = Field(default=None, primary_key=True)
+    chain_id: str = Field(sa_column=Column(TEXT, nullable=False))
+    asset_id: str = Field(sa_column=Column(TEXT, nullable=False))
+    payer_address: str = Field(sa_column=Column(VARCHAR(length=128), nullable=False))
+    payee_address: str = Field(sa_column=Column(VARCHAR(length=128), nullable=False))
+    amount: Decimal = Field(sa_column=Column(NUMERIC(precision=78, scale=0), nullable=False))
+    token_decimals: int = Field(nullable=False, default=0)
+    intent_deadline: datetime = Field(sa_column=Column(TIMESTAMP(timezone=True)))
+    terms_hash: str = Field(sa_column=Column(TEXT))
+    status: str = Field(sa_column=Column(TEXT)) 
+    created_at: datetime = Field(sa_column=Column(TIMESTAMP(timezone=True), default=datetime.now()))
+    updated_at: datetime = Field(sa_column=Column(TIMESTAMP(timezone=True), default=datetime.now()))
+    intents: list["AuditEvent"] = Relationship(back_populates="audit_event_intent")
+
+class AuditEvent(SQLModel, table=True):
+    __tablename__ = "audit_event"
+
+    event_id: Optional[uuid.UUID] = Field(
+        default=None,
+        primary_key=True,
+        sa_column_kwargs={
+            "pg_type": PG_UUID(as_uuid=True),
+            "server_default": "gen_random_uuid()"
+        }
+    )
+
+    intent_id: Optional[str] = Field(foreign_key="intent.intent_id")
+    chain_id: str = Field(sa_column=Column(TEXT, nullable=False))
+    asset_id: str = Field(sa_column=Column(TEXT, nullable=False))
+    event_type: Optional[AuditEventType] = Field(sa_column=Column(PG_ENUM(AuditEventType), nullable=False))
+    tx_hash: str = Field(sa_column=Column(TEXT))
+    block_number: int = Field(sa_column=Column(BIGINT))
+    confirmations: int = Field(nullable=False, default=0)
+    finality_status: Optional[FinalityStatus] = Field(sa_column=Column(PG_ENUM(FinalityStatus), default=None))
+    from_address: str = Field(sa_column=Column(VARCHAR(length=128)))
+    to_address: str = Field(sa_column=Column(VARCHAR(length=128)))
+    amount: Decimal = Field(sa_column=Column(NUMERIC(precision=78, scale=0)))
+    token_decimals: int = Field(nullable=False)
+    owner_address: str = Field(sa_column=Column(VARCHAR(length=128)))
+    spender_address: str = Field(sa_column=Column(VARCHAR(length=128)))
+    permit_nonce: Decimal = Field(sa_column=Column(NUMERIC(precision=78, scale=0)))
+    value: Decimal = Field(sa_column=Column(NUMERIC(precision=78, scale=0)))
+    signature_hash: str = Field(sa_column=Column(TEXT))
+    metadata_: Optional[dict] = Field(sa_column=Column("metadata", JSONB, default={}))
+    timestamp: datetime = Field(sa_column=Column(TIMESTAMP(timezone=True), nullable=False))
+    created_at: datetime = Field(sa_column=Column(TIMESTAMP(timezone=True), default=datetime.now()))
+    audit_event_intent: Intent = Relationship(back_populates="intents")
+
+class CustodyWalletBalanceSnapshot(SQLModel, table=True):
+    __tablename__ = "custody_wallet_balance_snapshot"
+
+    snapshot_id: Optional[uuid.UUID] = Field(
+        default=None,
+        primary_key=True,
+        sa_column_kwargs={
+            "pg_type": PG_UUID(as_uuid=True),
+            "server_default": "gen_random_uuid()"
+        }
+    )
+    wallet_address: str = Field(sa_column=Column(VARCHAR(length=128), nullable=False))
+    chain_id: str = Field(sa_column=Column(TEXT, nullable=False))
+    asset_id: str = Field(sa_column=Column(TEXT, nullable=False))
+    block_number: int = Field(sa_column=Column(BIGINT, nullable=False))
+    balance: Decimal = Field(sa_column=Column(NUMERIC(precision=78, scale=0), nullable=False))
+    as_of_time: datetime = Field(sa_column=Column(TIMESTAMP(timezone=True), nullable=False))
+    created_at: datetime = Field(sa_column=Column(TIMESTAMP(timezone=True), default=datetime.now()))
