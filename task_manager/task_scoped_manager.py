@@ -1,8 +1,5 @@
 from log import logger
 
-import asyncio
-
-from asyncio import Task
 from .payment_service import PaymentService
 
 class TaskScopedServiceManager:
@@ -14,20 +11,20 @@ class TaskScopedServiceManager:
         instance = cls._instances.get(session_id)
         result = {}
         if instance is None:
-            instance = PaymentService(wallet_address, payload)
+            instance = PaymentService(session_id, wallet_address, payload)
             result = await instance.sign_for_payment()
             cls._instances[session_id] = instance
         return result
     
     @classmethod
-    async def execute_permit_and_transfer(cls, session_id: str, wallet_address: str) -> dict[str, any]:
+    async def execute_permit_and_transfer(cls, session_id: str, chain: str, wallet_address: str) -> dict[str, any]:
         logger.info(f"current session_id: {session_id} in execute_permit_and_transfer.")
         result = {}
         instance = cls._instances.get(session_id)
         logger.info(f"Instance for wallet_address: {instance.wallet_address}")
         if instance and instance.wallet_address == wallet_address:
             logger.info(f"Execute to permit and transfer with wallet address: {wallet_address} for payment service instance")
-            result = await instance.do_permit_and_transfer()
+            result = await instance.do_permit_and_transfer(session_id, chain)
         return result
             
     @classmethod

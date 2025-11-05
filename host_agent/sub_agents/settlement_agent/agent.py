@@ -10,7 +10,6 @@ import re
 from services.order.order_service import add_or_update_order_item
 from services.blockchain_errors import BlockchainErrorClassifier
 
-from services.intent import collect_intent
 from services.audit_event import collect_audit_event
 from dao.model import AuditEventType
 
@@ -102,7 +101,7 @@ async def settle_payment(tool_context: ToolContext) -> dict[str, any]:
     spender_wallet_address = os.getenv("SPENDER_WALLET_ADDRESS")
     logger.info(f"Permit and transfer with owner wallet address: {owner_wallet_address} spend amount: {spend_amount}, deadline: {deadline}")
     try:
-        permit_transfer_result = await TaskScopedServiceManager.execute_permit_and_transfer(session_id=session_id, wallet_address=owner_wallet_address)
+        permit_transfer_result = await TaskScopedServiceManager.execute_permit_and_transfer(session_id=session_id, chain=chain, wallet_address=owner_wallet_address)
         if permit_transfer_result:
             tx_hash = permit_transfer_result["txHash"]
             is_success = permit_transfer_result["success"]
@@ -113,7 +112,7 @@ async def settle_payment(tool_context: ToolContext) -> dict[str, any]:
                 event_type = AuditEventType.transaction_failed
             collect_audit_event(session_id=session_id, chain=chain, event_type=event_type,
                             owner_address=owner_wallet_address, spender_address=spender_wallet_address,
-                            amount=spend_amount, tx_hash=tx_hash)        
+                            amount=spend_amount, tx_hash=tx_hash)
     except Exception as e:
         error_str = str(e)
         logger.error(f"Failed to settlement for permit_and_transfer: {error_str}")
