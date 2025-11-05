@@ -73,6 +73,7 @@ async def permit_and_transfer(session_id, chain, owner_wallet_address, budget_am
 
     owner = details["owner"]
     spender = details["spender"]
+    merchant_id = "zen7"
     amount = details["amount"]
     gas_price = details["gas_price"] / 10000
     net_amount = amount - gas_price
@@ -83,7 +84,7 @@ async def permit_and_transfer(session_id, chain, owner_wallet_address, budget_am
     
     collect_settlement_batch(settlement_detail=settlement_detail, chain=chain, tenant_id=spender,
             period_start=period_start, period_end=period_end, total_count=1, total_amount=spend_amount,
-            payee_address=spender, merchant_id=spender, check_date=current_time, fee_total=gas_price,
+            payee_address=spender, merchant_id=merchant_id, check_date=current_time, fee_total=gas_price,
             net_total=net_amount, settlement_status=settlement_batch_status)
     return result
 
