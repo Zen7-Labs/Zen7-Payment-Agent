@@ -10,6 +10,10 @@ import re
 from services.order.order_service import add_or_update_order_item
 from services.blockchain_errors import BlockchainErrorClassifier
 
+from services.intent import collect_intent
+from services.audit_event import collect_audit_event
+from dao.model import AuditEventType
+
 load_dotenv()
 
 from task_manager.task_scoped_manager import TaskScopedServiceManager
@@ -75,6 +79,9 @@ async def settle_payment(tool_context: ToolContext) -> dict[str, any]:
     """
     Settle the zen7 payment for the payer.
     """
+    session_id = tool_context.state.get("session_id", "")
+    logger.info(f"Got session ID: {session_id} from context")
+
     logger.info(f"Received the permission to permit from payer.")
     order_number = tool_context.state["user:order_number"]
     spend_amount = tool_context.state["user:spend_amount"]
@@ -92,9 +99,21 @@ async def settle_payment(tool_context: ToolContext) -> dict[str, any]:
         owner_wallet_address = os.getenv("OWNER_WALLET_ADDRESS")
         logger.error("None of owner wallet address received from context instead from env")
 
+    spender_wallet_address = os.getenv("SPENDER_WALLET_ADDRESS")
     logger.info(f"Permit and transfer with owner wallet address: {owner_wallet_address} spend amount: {spend_amount}, deadline: {deadline}")
     try:
-        await TaskScopedServiceManager.execute_permit_and_transfer(owner_wallet_address)
+        permit_transfer_result = await TaskScopedServiceManager.execute_permit_and_transfer(session_id=session_id, wallet_address=owner_wallet_address)
+        if permit_transfer_result:
+            tx_hash = permit_transfer_result["txHash"]
+            is_success = permit_transfer_result["success"]
+            event_type = None
+            if is_success:
+                event_type = AuditEventType.transfer_completed
+            else:
+                event_type = AuditEventType.transaction_failed
+            collect_audit_event(session_id=session_id, chain=chain, event_type=event_type,
+                            owner_address=owner_wallet_address, spender_address=spender_wallet_address,
+                            amount=spend_amount, tx_hash=tx_hash)        
     except Exception as e:
         error_str = str(e)
         logger.error(f"Failed to settlement for permit_and_transfer: {error_str}")
@@ -111,7 +130,9 @@ async def settle_payment(tool_context: ToolContext) -> dict[str, any]:
             parsed = BlockchainErrorClassifier.parse_error(error_str)
             error_code = parsed["error_code"]
             error_message = parsed["user_message"]
-        
+        collect_audit_event(session_id=session_id, chain=chain, event_type=AuditEventType.transaction_failed,
+                            owner_address=owner_wallet_address, spender_address=spender_wallet_address,
+                            amount=spend_amount)
         # Update order status
         add_or_update_order_item(
             order_number=order_number, 
@@ -141,6 +162,8 @@ async def settle_payment(tool_context: ToolContext) -> dict[str, any]:
             "error_code": error_code,
             "message": f"Failed to settlement for permit_and_transfer: {error_message}"
         }
+    finally:
+        await TaskScopedServiceManager.release_instance(session_id=session_id, wallet_address=owner_wallet_address)
 
     logger.info("Settlement about the payer info:\n")
     logger.info(f"\tOrder number: {order_number}")

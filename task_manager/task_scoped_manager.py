@@ -6,38 +6,35 @@ from asyncio import Task
 from .payment_service import PaymentService
 
 class TaskScopedServiceManager:
-    _instances: dict[Task, PaymentService] = {}
+    _instances: dict[str, PaymentService] = {}
 
     @classmethod
-    async def execute_sign(cls, wallet_address: str, payload: dict[str, any]) -> PaymentService:
-        current_task = asyncio.current_task()
-        if current_task is None:
-            raise RuntimeError("Must be called within an asyncio task.")
-        instance = cls._instances.get(current_task)
+    async def execute_sign(cls, session_id: str, wallet_address: str, payload: dict[str, any]) -> dict[str, any]:
+        logger.info(f"current session_id: {session_id} in execute_sign.")
+        instance = cls._instances.get(session_id)
+        result = {}
         if instance is None:
             instance = PaymentService(wallet_address, payload)
-            await instance.sign_for_payment()
-            cls._instances[current_task] = instance
-        return instance
+            result = await instance.sign_for_payment()
+            cls._instances[session_id] = instance
+        return result
     
     @classmethod
-    async def execute_permit_and_transfer(cls, wallet_address: str):
-        current_task = asyncio.current_task()
-        if current_task is None:
-            raise RuntimeError("Must be called within an asyncio task.")
-        instance = cls._instances.get(current_task)
+    async def execute_permit_and_transfer(cls, session_id: str, wallet_address: str) -> dict[str, any]:
+        logger.info(f"current session_id: {session_id} in execute_permit_and_transfer.")
+        result = {}
+        instance = cls._instances.get(session_id)
+        logger.info(f"Instance for wallet_address: {instance.wallet_address}")
         if instance and instance.wallet_address == wallet_address:
             logger.info(f"Execute to permit and transfer with wallet address: {wallet_address} for payment service instance")
-            await instance.do_permit_and_transfer()
-        else:
-            logger.error(f"No found payment service instance with wallet address: {wallet_address}")
+            result = await instance.do_permit_and_transfer()
+        return result
             
     @classmethod
-    async def release_instance(cls, wallet_address: str):
-        current_task = asyncio.current_task()
-        if current_task in cls._instances:
-            instance = cls._instances.get(current_task)
+    async def release_instance(cls, session_id: str, wallet_address: str):
+        if cls._instances:
+            instance = cls._instances.get(session_id)
             if instance and instance.wallet_address == wallet_address:
-                instance = cls._instances.pop(current_task)
+                instance = cls._instances.pop(session_id)
                 await instance.cleanup()
                 logger.info(f"Payment service instance for wallet_address: {instance.wallet_address} has cleaned up.")

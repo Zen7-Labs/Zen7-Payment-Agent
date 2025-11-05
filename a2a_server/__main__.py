@@ -1,4 +1,5 @@
 import logging
+from logging import getLogger, StreamHandler
 
 import click
 import uvicorn
@@ -23,6 +24,7 @@ zen7_payment_server_host = os.getenv("ZEN7_PAYMENT_SERVER_HOST")
 zen7_payment_server_port = os.getenv("ZEN7_PAYMENT_SERVER_PORT")
 zen7_payment_server_base_url = f"http://{zen7_payment_server_host}:{zen7_payment_server_port}"
 
+zen7_payment_agent_card_url = os.getenv("ZEN7_PAYMENT_AGENT_CARD_URL")
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -39,7 +41,7 @@ def main(host, port):
     agent_card = AgentCard(
         name='Process with provided content',
         description=process_with_content_agent.description,
-        url=f'http://{host}:{port}',
+        url=zen7_payment_agent_card_url,
         version="1.0.0",
         defaultInputModes=["text", "text/plain"],
         defaultOutputModes=["text", "text/plain"],

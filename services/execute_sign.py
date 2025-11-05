@@ -301,4 +301,4 @@ def sign(budget: int , deadline: int, network: str = "sepolia", token: str = "US
     recovered = Account.recover_message(encoded, signature=signature_hex)
     assert recovered.lower() == OWNER.lower(), "Signature recover mismatch"
     logger.info(f"Recovered signer: {recovered}")
-    return signature_hex, r_hex, s_hex, v_int
+    return signature_hex, r_hex, s_hex, v_int, nonce

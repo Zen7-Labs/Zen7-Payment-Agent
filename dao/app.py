@@ -77,13 +77,23 @@ def get_order_list_by_user(user_id: str) -> list[dict[str, any]]:
             return results
         return None
     
-def add_intent_event(intent: Intent, audit_event: AuditEvent):
+def add_intent(intent: Intent)-> dict[str, any]:
     with Session(engine) as session:
-        logger.info(f"Adding intent event: {intent}")
-        audit_event.audit_event = intent
+        logger.info(f"Adding intent: {intent}")
+        session.add(intent)
+        session.commit()
+        session.refresh(intent)
+        return intent.model_dump(mode="json")
+    
+def add_audit_event(audit_event: AuditEvent, intent: Intent = None)-> dict[str, any]:
+    with Session(engine) as session:
+        logger.info(f"Adding audit event: {audit_event}")
+        if intent:
+            audit_event.audit_event_intent = intent
         session.add(audit_event)
         session.commit()
         session.refresh(audit_event)
         return audit_event.model_dump(mode="json")
+
 
         

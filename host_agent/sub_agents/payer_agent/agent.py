@@ -13,11 +13,17 @@ import os
 load_dotenv()
 
 from services.order.order_service import add_or_update_order_item
+from services.intent import collect_intent
+from services.audit_event import collect_audit_event
+from dao.model import AuditEventType
 
 async def create_payment(order_number: str, spend_amount: float, budget: float, expiration_date: str, currency: str, chain: str, tool_context: ToolContext) -> dict[str, any]:
     """
     Create payment for payer.
-    """
+    """    
+    session_id = tool_context.state.get("session_id", "")
+    logger.info(f"Got session ID: {session_id} from context")
+
     payment_info = tool_context.state.get("payment_info", {})
 
     if order_number:
@@ -131,6 +137,14 @@ async def create_payment(order_number: str, spend_amount: float, budget: float, 
 
     add_or_update_order_item(order_number=order_number, user_id=owner_wallet_address, spend_amount=spend_amount, budget=budget, currency=currency, chain=chain, status="PENDING", status_message="", deadline=deadline)
 
+    spender_wallet_address = os.getenv("SPENDER_WALLET_ADDRESS")
+    intent = collect_intent(session_id=session_id, chain=chain, 
+                   payer_address=owner_wallet_address, payee_address=spender_wallet_address,
+                   amount=spend_amount, deadline=deadline_time, status="IntentCreated")
+    collect_audit_event(intent=intent, session_id=session_id, chain=chain, event_type=AuditEventType.intent_created,
+                            owner_address=owner_wallet_address, spender_address=spender_wallet_address,
+                            amount=spend_amount)
+
     sign_info = tool_context.state.get("sign_info", {})
     logger.info(f"Sign_info from context: {sign_info}")
     
@@ -144,8 +158,13 @@ async def create_payment(order_number: str, spend_amount: float, budget: float, 
     if sign_info:
         payload.update(sign_info)
 
-    await TaskScopedServiceManager.execute_sign(wallet_address=owner_wallet_address, payload=payload)
-
+    sign_info = await TaskScopedServiceManager.execute_sign(session_id=session_id, wallet_address=owner_wallet_address, payload=payload)
+    if sign_info:
+        signature = sign_info["signature"]
+        nonce = sign_info["nonce"]
+        collect_audit_event(session_id=session_id, chain=chain, event_type=AuditEventType.permit_signed,
+                            owner_address=owner_wallet_address, spender_address=spender_wallet_address,
+                            amount=spend_amount, signature=signature, nonce=nonce)
     return {
         "status": "success",
         "message": f"Created payer payment signature and set payload to context."

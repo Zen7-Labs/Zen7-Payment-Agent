@@ -1,5 +1,28 @@
 from enum import Enum
 
+ChainID = {
+    "eth": "eip155:1",
+    "polygon": "eip155:137",
+    "base_sepolia": "eip155:84532",
+    "sepolia": "eip155:11155111",
+    "bnbtestnet": "eip155:27"
+}
+
+AssetID = {
+    "eip155:1": "eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+    "eip155:84532": "eip155:84532/erc20:0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+    "eip155:11155111": "eip155:11155111/slip44:60",
+    "eip155:27": "eip155:27/slip44:710",
+    "eip155:137": "eip155:137/slip44:60"
+}
+
+TokenDecimals = {
+    "eip155:1": 6,
+    "eip155:84532": 6,
+    "eip155:11155111": 18,
+    "eip155:27":18,
+    "eip155:137": 18
+}
 
 class ErrorCode(Enum):
     TRANSACTION_SERVICE_FAILED = (

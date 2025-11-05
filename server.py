@@ -16,6 +16,7 @@ import uvicorn
 import os
 
 from services.order.order_service import get_order_item
+from uuid import uuid4
 
 load_dotenv()
 
@@ -28,7 +29,10 @@ initial_state = {
     "currency": "USDC",
     "chain": "sepolia",
     "sign_info": {},
-    "owner_wallet_address": ""
+    "owner_wallet_address": "",
+    "session_id": "",
+    "chain_id": "",
+    "asset_id": ""
 }
 
 APP_NAME = "Zen7 Payment Agent"
@@ -84,7 +88,8 @@ async def chat(request: Request, service: Annotated[AppWideService, Depends(get_
     initial_state["owner_wallet_address"] = owner_wallet_address_from_request
     initial_state["payment_info"] = payment_info_from_request
     initial_state["timezone"] = timezone_from_request
-  
+    initial_state["session_id"] = str(uuid4())
+
     session_service, runner = service.get_shared_resources()
     session_id = None
     result = await session_service.list_sessions(app_name=APP_NAME, user_id=user_id_from_request)
@@ -115,6 +120,7 @@ async def chat(request: Request, service: Annotated[AppWideService, Depends(get_
         updated_state["owner_wallet_address"] = owner_wallet_address_from_request
         updated_state["payment_info"] = payment_info_from_request
         updated_state["timezone"] = timezone_from_request
+        updated_state["session_id"] = str(uuid4())
 
         await session_service.create_session(
             app_name=APP_NAME,

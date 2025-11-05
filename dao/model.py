@@ -382,7 +382,7 @@ class AuditEvent(SQLModel, table=True):
     value: Decimal = Field(sa_column=Column(NUMERIC(precision=78, scale=0)))
     signature_hash: str = Field(sa_column=Column(TEXT))
     metadata_: Optional[dict] = Field(sa_column=Column("metadata", JSONB, default={}))
-    timestamp: datetime = Field(sa_column=Column(TIMESTAMP(timezone=True), nullable=False))
+    timestamp: datetime = Field(sa_column=Column(TIMESTAMP(timezone=True), default=datetime.now()))
     created_at: datetime = Field(sa_column=Column(TIMESTAMP(timezone=True), default=datetime.now()))
     audit_event_intent: Intent = Relationship(back_populates="intents")
 
