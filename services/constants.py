@@ -5,7 +5,8 @@ ChainID = {
     "polygon": "eip155:137",
     "base_sepolia": "eip155:84532",
     "sepolia": "eip155:11155111",
-    "bnbtestnet": "eip155:27"
+    "bnbtestnet": "eip155:27",
+    "solana-devnet": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1"
 }
 
 AssetID = {
@@ -13,7 +14,8 @@ AssetID = {
     "eip155:84532": "eip155:84532/erc20:0x036CbD53842c5426634e7929541eC2318f3dCF7e",
     "eip155:11155111": "eip155:11155111/slip44:60",
     "eip155:27": "eip155:27/slip44:710",
-    "eip155:137": "eip155:137/slip44:60"
+    "eip155:137": "eip155:137/slip44:60",
+    "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/slip44:501"
 }
 
 TokenDecimals = {
@@ -21,7 +23,8 @@ TokenDecimals = {
     "eip155:84532": 6,
     "eip155:11155111": 18,
     "eip155:27":18,
-    "eip155:137": 18
+    "eip155:137": 18,
+    "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1": 9
 }
 
 class ErrorCode(Enum):

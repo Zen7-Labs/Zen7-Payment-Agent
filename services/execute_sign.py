@@ -1,15 +1,6 @@
-from dotenv import load_dotenv
-
-import sys
-import os
-
-# Add project root directory to Python path
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
-
 from log import logger
 
+from dotenv import load_dotenv
 import os
 
 from web3 import Web3
@@ -18,44 +9,34 @@ from eth_account.messages import encode_typed_data
 
 load_dotenv()
 
-from services import CHAIN_ID, CHAIN_ID_HEX, CHAIN_RPC_URL, USDC_ADDRESS, ACTIVE_TOKEN, SEPOLIA_DAI_ADDRESS
-
-SEPOLIA_PARAMS = {
-    "chainId": CHAIN_ID_HEX,
-    "chainName": "Sepolia",
-    "nativeCurrency": { "name": "SepoliaETH", "symbol": "ETH", "decimals": 18 },
-    "rpcUrls": [CHAIN_RPC_URL],
-    "blockExplorerUrls": ["https://sepolia.etherscan.io"]
-}
-
 OWNER_PRIVATE_KEY = os.getenv("PAYER_PRIVATE_KEY")
 # USDC (Sepolia) from your code
 
-USDC_ADDRESS = Web3.to_checksum_address(USDC_ADDRESS)
-USDC_NAME = ACTIVE_TOKEN
-USDC_VERSION = "2"
-CHAIN_ID = CHAIN_ID  # Sepolia
+SEPOLIA_CHAIN_ID_HEX = "0xaa36a7"  # Sepolia Chain ID (fixed value)
+SEPOLIA_RPC_URL = os.getenv("SEPOLIA_RPC_URL")  # Read from .env
+SEPOLIA_USDC_ADDRESS = os.getenv("SEPOLIA_USDC_ADDRESS")
+SEPOLIA_DAI_ADDRESS = os.getenv("SEPOLIA_DAI_ADDRESS")
 
 # Chain Configuration Dictionary
 CHAIN_CONFIGS = {
     "sepolia": {
-        "chain_id": CHAIN_ID,
-        "chain_id_hex": CHAIN_ID_HEX,
-        "rpc_url": CHAIN_RPC_URL,  # Using SEPOLIA_RPC_URL
+        "chain_id": 11155111,
+        "chain_id_hex": "0xaa36a7",
+        "rpc_url": os.getenv("SEPOLIA_RPC_URL"),  # Use SEPOLIA_RPC_URL
         "name": "Sepolia",
-         "native_currency": "ETH"
+        "native_currency": "ETH"
     },
     "basesepolia": {
-        "chain_id": CHAIN_ID,
-        "chain_id_hex": CHAIN_ID_HEX,
-        "rpc_url": CHAIN_RPC_URL,  # Using BASE_SEPOLIA_RPC_URL
+        "chain_id": 84532,
+        "chain_id_hex": "0x14a34",
+        "rpc_url": os.getenv("BASE_SEPOLIA_RPC_URL"),  # Use BASE_SEPOLIA_RPC_URL
         "name": "Base Sepolia",
         "native_currency": "ETH"
     },
     "bnbtestnet": {
-        "chain_id": CHAIN_ID,
-        "chain_id_hex": CHAIN_ID_HEX,
-        "rpc_url": CHAIN_RPC_URL,
+        "chain_id": 97,
+        "chain_id_hex": "0x61",
+        "rpc_url": os.getenv("BNBChain_Testnet_RPC_URL"),  # Use BNBChain_Testnet_RPC_URL
         "name": "BNB Chain Testnet",
         "native_currency": "BNB"
     }
@@ -65,28 +46,28 @@ CHAIN_CONFIGS = {
 TOKEN_CONFIGS = {
     "sepolia": {
         "USDC": {
-            "address": Web3.to_checksum_address(USDC_ADDRESS),
+            "address": Web3.to_checksum_address(SEPOLIA_USDC_ADDRESS) if SEPOLIA_USDC_ADDRESS else None,
             "name": "USDC",
             "version": "2"
         },
         "DAI": {
-            "address": Web3.to_checksum_address(SEPOLIA_DAI_ADDRESS),
+            "address": Web3.to_checksum_address(SEPOLIA_DAI_ADDRESS) if SEPOLIA_DAI_ADDRESS else None,
             "name": "DAI",
             "version": "1"
         }
     },
     "basesepolia": {
         "USDC": {
-            "address": Web3.to_checksum_address(USDC_ADDRESS),
+            "address": Web3.to_checksum_address(os.getenv("BASE_SEPOLIA_USDC_ADDRESS")) if os.getenv("BASE_SEPOLIA_USDC_ADDRESS") else None,
             "name": "USDC",
             "version": "2"
         }
     },
     "bnbtestnet": {
         "USDC": {
-            "address": Web3.to_checksum_address(USDC_ADDRESS),
-            "name": "USD Coin",
-            "version": "1"
+            "address": Web3.to_checksum_address(os.getenv("BNBChain_Testnet_USDC_ADDRESS")) if os.getenv("BNBChain_Testnet_USDC_ADDRESS") else None,
+            "name": "USD Coin",  # Must match the __ERC20Permit_init parameter in the contract
+            "version": "1"  # OpenZeppelin ERC20Permit default version
         }
     }
 }

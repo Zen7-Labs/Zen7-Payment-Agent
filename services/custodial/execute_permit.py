@@ -1,5 +1,4 @@
 import asyncio
-from services import CHAIN_ID
 
 from log import logger
 
