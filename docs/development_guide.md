@@ -98,12 +98,17 @@ Copy-Item .env.example .env -Force
 | `SPENDER_WALLET_ADDRESS` | ✅ | Backend wallet address for permit spender |
 | `ZEN7_PAYMENT_SERVER_HOST` | ✅ | FastAPI service binding address (default: `localhost`) |
 | `ZEN7_PAYMENT_SERVER_PORT` | ✅ | FastAPI service port (default: `8080`) |
-| `CHAIN_SELECTION` | ✅ | Target blockchain network (`SEPOLIA` or `BASE_SEPOLIA`) |
+| `CHAIN_SELECTION` | ✅ | Target blockchain network (`SEPOLIA`, `BASE_SEPOLIA`, `POLYGON_AMOY`, `BNB_TESTNET`) |
 | `SEPOLIA_CHAIN_RPC_URL` | ✅ | Ethereum Sepolia RPC endpoint (Infura/Alchemy) |
 | `SEPOLIA_USDC_ADDRESS` | ✅ | Testnet USDC contract address |
-| `SEPOLIA_DAI_ADDRESS` | ⬜ | Testnet DAI contract address (if using DAI) |
 | `BASE_SEPOLIA_CHAIN_RPC_URL` | ⬜ | Base Sepolia RPC endpoint (if using Base network) |
 | `BASE_SEPOLIA_USDC_ADDRESS` | ⬜ | Base Sepolia USDC contract address |
+| `POLYGON_AMOY_CHAIN_RPC_URL` | ⬜ | Polygon Amoy RPC endpoint (if using Polygon) |
+| `BNB_TESTNET_CHAIN_RPC_URL` | ⬜ | BNB Chain Testnet RPC endpoint (if using BNB) |
+| `SOLANA_NETWORK` | ⬜ | Solana network selection (`DEVNET` or `TESTNET`) |
+| `SOLANA_RPC_URL` | ⬜ | Solana RPC endpoint (if using Solana) |
+| `SOLANA_PAYER_PRIVATE_KEY` | ⬜ | Solana payer private key (Base58 encoded) |
+| `DATABASE_URL` | ⬜ | PostgreSQL database connection string |
 | `NOTIFICATION_URL` | ⬜ | Payment result notification callback URL |
 | `ACTIVE_TOKEN` | ✅ | Active token for payments (`USDC` or `DAI`) |
 
@@ -209,13 +214,13 @@ flowchart TD
 
 1. **Payer Agent** (`host_agent/sub_agents/payer_agent/`)
    - Creates payment orders with order number, spend amount, budget, expiration date, and currency
-   - Generates EIP-712 signatures for permit authorization
+   - Generates EIP-712 or Solana signatures based on blockchain type
    - Validates wallet balance and nonce
    - Submits payment for settlement processing
 
 2. **Settlement Agent** (`host_agent/sub_agents/settlement_agent/`)
    - Confirms payment details (budget, expiration, currency)
-   - Executes on-chain settlement transactions
+   - Executes on-chain settlement transactions (EVM or Solana)
    - Monitors transaction status and confirmations
    - Notifies payee agent upon successful settlement
 
@@ -223,6 +228,16 @@ flowchart TD
    - Receives settlement notifications
    - Confirms order creation
    - Notifies payment initiator of completion
+
+4. **Order Agent** (`host_agent/sub_agents/order_agent/`)
+   - Processes order-related queries
+   - Performs intent recognition for routing
+   - Manages order lifecycle
+
+5. **Allowance Agent** (`host_agent/sub_agents/allowance_agent/`)
+   - Queries token authorization allowances
+   - Supports multi-chain allowance checks
+   - Returns current approval amounts
 
 #### 2.2.2 Protocol Adapters
 
@@ -240,37 +255,64 @@ flowchart TD
 
 #### 2.2.3 Service Layer
 
-**Signing Service** (`services/execute_sign.py`)
-- Implements EIP-712 typed data signing for USDC/DAI permits
+**Signing Service**
+- `execute_sign.py`: EIP-712 typed data signing for EVM chains (USDC/DAI permits)
+- `execute_sign_solana.py`: Ed25519 signature generation for Solana SPL tokens
 - Validates private keys, nonces, and token balances
 - Generates permit signatures with deadline and value parameters
-- Supports both Ethereum and Base Sepolia networks
+- Supports multiple networks: Ethereum, Base, Polygon, BNB, Solana
 
 **Transfer Handler** (`services/custodial/` & `services/non_custodial/`)
+- `base_handler.py`: Abstract base class for transfer operations
+- `evm_transfer_handler.py`: EVM-compatible chain transfer handler
+- `solana_transfer_handler.py`: Solana blockchain transfer handler
 - Custodial mode: Backend-managed wallet operations
 - Non-custodial mode: User-controlled wallet operations
 - Handles permit execution and token transfers
 
-**Constants** (`services/constants.py`)
-- Centralized blockchain configuration
+**Data Services**
+- `intent.py`: Intent recording and tracking service
+- `audit_event.py`: Audit event logging for compliance
+- `settlement_batch.py`: Batch settlement management
+- `settlement_detail.py`: Settlement detail tracking
+- Full transaction lifecycle auditing
+
+**Configuration**
+- `constants.py`: Centralized blockchain configuration
 - Chain IDs, RPC URLs, contract addresses
 - Network-specific parameters
+
+#### 2.2.4 Data Access Layer
+
+**DAO (Data Access Objects)** (`dao/`)
+- `database.py`: PostgreSQL database connection management
+- `model.py`: SQLModel ORM model definitions (Order, Payment, Settlement, Intent, AuditEvent)
+- `app.py`: Data access interfaces and CRUD operations
+- Supports complete business data persistence
+
+#### 2.2.5 Task Management Layer
+
+**Task Manager** (`task_manager/`)
+- `payment_service.py`: Unified payment service interface
+- `task_scoped_manager.py`: Task scope management with factory pattern
+- Ensures isolation and lifecycle management for different payment tasks
+- Manages service dependencies and resource allocation
 
 ### 2.3 Data Flow
 
 #### Payment Creation Flow
 ```
 User Request → Host Agent → Payer Agent → 
-Generate EIP-712 Signature → Return Signature → 
-Update Session State → Notify User
+Generate EIP-712/Solana Signature → Return Signature → 
+Update Session State → Save Intent → Notify User
 ```
 
 #### Settlement Flow
 ```
 Settlement Request → Settlement Agent → 
 Verify Payment Details → Execute On-Chain Transaction → 
-Monitor Confirmation → Notify Payee Agent → 
-Create Order → Return Confirmation
+Monitor Confirmation → Create Audit Event → 
+Notify Payee Agent → Create Order → Return Confirmation
 ```
 
 ---
@@ -290,6 +332,9 @@ Create Order → Return Confirmation
 | `run.ps1` | PowerShell Script | Windows-compatible orchestration script |
 | `pyproject.toml` | Dependency Management | Project metadata and dependency specification (managed by `uv`) |
 | `requirements.txt` | Legacy Dependencies | Traditional pip requirements file (maintained for compatibility) |
+| `init.sql` | Database Schema | PostgreSQL database initialization script |
+| `dao/` | Data Access Layer | Database models and access interfaces |
+| `task_manager/` | Task Management | Payment service and task scope management |
 
 ### 3.2 Entry Points and Application Layer
 

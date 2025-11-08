@@ -23,11 +23,15 @@ This repository contains the complete implementation of Zen7 Payment Agent, show
 
 The core implementation of the project is located in the following key directories:
 
-**[`host_agent`](https://github.com/Zen7-Labs/Zen7-Payment-Agent/tree/main/host_agent)** - The core implementation of the multi-agent collaborative architecture. The host agent uses the `gemini-2.0-flash-lite` model as the core coordinator, responsible for query understanding, state management, and response coordination. The sub-agent system (`sub_agents/`) contains three specialized agents: `payer_agent` handles order creation for the payer, EIP-712 signature generation, and wallet balance verification; `settlement_agent` focuses on the settlement process, confirming payment details, executing on-chain transactions, and monitoring transaction status; `payee_agent` handles payee-related operations, receiving settlement notifications, confirming order creation, and notifying payment completion.
+**[`host_agent`](https://github.com/Zen7-Labs/Zen7-Payment-Agent/tree/main/host_agent)** - The core implementation of the multi-agent collaborative architecture. The host agent uses the `gemini-2.0-flash-lite` model as the core coordinator, responsible for query understanding, state management, and response coordination. The sub-agent system (`sub_agents/`) contains five specialized agents: `payer_agent` handles order creation for the payer, EIP-712 signature generation, and wallet balance verification; `settlement_agent` focuses on the settlement process, confirming payment details, executing on-chain transactions, and monitoring transaction status; `payee_agent` handles payee-related operations, receiving settlement notifications, confirming order creation, and notifying payment completion; `order_agent` manages order processing and intent recognition, automatically routing to different agents; `allowance_agent` provides authorization quota query functionality, supporting multi-chain token authorization queries.
 
 **[`a2a_server`](https://github.com/Zen7-Labs/Zen7-Payment-Agent/tree/main/a2a_server) & [`mcp_server`](https://github.com/Zen7-Labs/Zen7-Payment-Agent/tree/main/mcp_server)** - Protocol adaptation layer implementation, providing diverse integration methods. `a2a_server` implements Google's Agent-to-Agent protocol using the `A2AStarletteApplication` framework, exposing agent capabilities through `AgentCard`, supporting inter-agent collaborative communication, and running on port 10000 by default. `mcp_server` implements Model Context Protocol integration based on the `FastMCP` framework, encapsulating payment functionality as tool APIs, providing the core `proceed_payment_and_settlement_detail_info` tool, supporting SSE (Server-Sent Events) transport, and running on port 8015 by default.
 
-**[`services`](https://github.com/Zen7-Labs/Zen7-Payment-Agent/tree/main/services)** - Complete blockchain service implementation. The signature service (`execute_sign.py`) provides EIP-712 typed data signing functionality, supporting permit signatures for USDC and DAI; transfer handlers are divided into `custodial/` mode (backend manages wallets to simplify user experience) and `non_custodial/` mode (users control private keys for enhanced security); constant configuration (`constants.py`) centrally manages blockchain network configurations, contract addresses, and chain IDs; permit execution (`execute_permit.py`) handles ERC-20 token authorization and permit execution.
+**[`dao`](https://github.com/Zen7-Labs/Zen7-Payment-Agent/tree/main/dao)** - Data access layer implementation, integrating PostgreSQL + SQLModel for data persistence. Includes database model definitions (`model.py`), database connection management (`database.py`), and data access interfaces (`app.py`), supporting complete business data management for orders, payments, settlements, intents, and audit events.
+
+**[`task_manager`](https://github.com/Zen7-Labs/Zen7-Payment-Agent/tree/main/task_manager)** - Task management layer implementation with factory pattern design. `payment_service.py` provides a unified interface for payment services, `task_scoped_manager.py` implements task scope management, ensuring isolation and lifecycle management for different payment tasks.
+
+**[`services`](https://github.com/Zen7-Labs/Zen7-Payment-Agent/tree/main/services)** - Complete blockchain service implementation. Signature services support both EVM chains (`execute_sign.py`) and Solana chain (`execute_sign_solana.py`), with EVM providing EIP-712 typed data signing and supporting permit signatures for USDC and DAI; transfer handlers adopt base class abstraction design (`base_handler.py`), divided into `custodial/` mode (backend manages wallets to simplify user experience) and `non_custodial/` mode (users control private keys for enhanced security), supporting both EVM (`evm_transfer_handler.py`) and Solana (`solana_transfer_handler.py`) blockchains; data service layer includes intent recording (`intent.py`), audit events (`audit_event.py`), settlement batches (`settlement_batch.py`), and settlement details (`settlement_detail.py`), enabling full transaction lifecycle tracking; constant configuration (`constants.py`) centrally manages blockchain network configurations, contract addresses, and chain IDs; permit execution (`execute_permit.py`) handles ERC-20 token authorization and permit execution.
 
 ### Companion Console Demo Application
 
@@ -37,12 +41,23 @@ The companion console demo application is located in a separate [Zen7-Console-De
 
 ### Technology Stack and Compatibility
 
-**Supported Blockchain Networks**: Ethereum Sepolia, Base Sepolia Testnets  
-**Compatible Token Standards**: USDC (Version 2), DAI (Version 1)  
-**Signature Standard**: EIP-712 Typed Data Signing  
-**Wallet Integration**: MetaMask, Coinbase Wallet  
+**Supported Blockchain Networks**:
+- EVM Compatible Chains: Ethereum Sepolia, Base Sepolia, Polygon Amoy, BNB Chain Testnet
+- Solana: Devnet, Testnet
 
-This design provides developers with a flexible testing environment while ensuring good compatibility with mainstream wallets and blockchain networks.
+**Compatible Token Standards**:
+- EVM: USDC (Version 2), DAI (Version 1)
+- Solana: SPL Token
+
+**Signature Standards**:
+- EVM: EIP-712 Typed Data Signing
+- Solana: Ed25519 Signature
+
+**Wallet Integration**: MetaMask, Coinbase Wallet, Phantom Wallet
+
+**Data Persistence**: PostgreSQL + SQLModel ORM
+
+This design provides developers with a flexible testing environment, supporting a complete payment solution with multi-chain and multi-currency capabilities, while ensuring good compatibility with mainstream wallets and blockchain networks.
 
 
 ## Quick Start

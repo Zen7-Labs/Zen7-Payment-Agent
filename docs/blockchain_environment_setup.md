@@ -23,19 +23,25 @@ Zen7 Payment Agent currently supports the following test networks:
 | Network Name | Chain ID (Hex) | Chain ID (Dec) | Recommendation Level |
 |---------|----------------|----------------|----------|
 | **Ethereum Sepolia** | `0xaa36a7` | `11155111` | ⭐⭐⭐ Highly Recommended |
-| **Base Sepolia** | `0x14a34` | `84532` | ⭐⭐ Alternative |
+| **Base Sepolia** | `0x14a34` | `84532` | ⭐⭐⭐ Recommended |
+| **Polygon Amoy** | `0x13882` | `80002` | ⭐⭐ Alternative |
+| **BNB Chain Testnet** | `0x61` | `97` | ⭐⭐ Alternative |
+| **Solana Devnet** | N/A | N/A | ⭐⭐⭐ Recommended |
 
-> **Recommended: Ethereum Sepolia** - More mature and stable, easy to obtain test tokens, comprehensive documentation.
+> **Recommended Networks**: 
+> - **EVM Chains**: Ethereum Sepolia and Base Sepolia - More mature and stable, easy to obtain test tokens, comprehensive documentation.
+> - **Solana**: Solana Devnet - Fast confirmation times, low fees, excellent developer experience.
 
 ### 1.2 Network Features Comparison
 
-| Feature | Ethereum Sepolia | Base Sepolia |
-|-----|-----------------|--------------|
-| Gas Fees | Higher | Lower |
-| Network Stability | Very High | High |
-| Test Token Availability | Easy | Moderate |
-| Block Confirmation Time | ~12 seconds | ~2 seconds |
-| Community Support | Best | Good |
+| Feature | Ethereum Sepolia | Base Sepolia | Polygon Amoy | BNB Testnet | Solana Devnet |
+|-----|-----------------|--------------|--------------|-------------|---------------|
+| Gas Fees | Higher | Lower | Low | Very Low | Minimal |
+| Network Stability | Very High | High | High | High | Very High |
+| Test Token Availability | Easy | Moderate | Moderate | Easy | Easy |
+| Block Confirmation Time | ~12 seconds | ~2 seconds | ~2 seconds | ~3 seconds | ~400ms |
+| Community Support | Best | Good | Good | Good | Excellent |
+| Token Standard | ERC-20 | ERC-20 | ERC-20 | BEP-20 | SPL Token |
 
 ---
 
@@ -139,32 +145,68 @@ The project requires the following account types:
 - **Alchemy Faucet**: https://sepoliafaucet.com/
 - **Infura Faucet**: https://www.infura.io/faucet/sepolia
 
+#### Base Sepolia Test ETH:
+- **Base Sepolia Faucet**: https://www.coinbase.com/faucets/base-ethereum-sepolia-faucet
+
+#### Polygon Amoy Test MATIC:
+- **Polygon Faucet**: https://faucet.polygon.technology/
+
+#### BNB Chain Testnet Test BNB:
+- **BNB Testnet Faucet**: https://testnet.bnbchain.org/faucet-smart
+
 #### Steps:
 1. Visit the faucet website
-2. Connect MetaMask wallet
-3. Confirm network is Sepolia
-4. Click to request test ETH
+2. Connect MetaMask wallet (or Phantom for Solana)
+3. Confirm network is correct
+4. Click to request test tokens
 5. Wait for transfer confirmation (usually 1-2 minutes)
 
-### 4.2 Obtaining Test USDC
+### 4.2 Obtaining Test USDC (EVM Chains)
 
 #### Circle USDC Test Token Faucet:
 - **Official Faucet**: https://faucet.circle.com/
-- **Contract Address**: `0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238`
+- **Ethereum Sepolia Contract**: `0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238`
+- **Base Sepolia Contract**: `0x036CbD53842c5426634e7929541eC2318f3dCF7e`
 
 #### Steps:
 1. Visit Circle test faucet
-2. Connect wallet and switch to Sepolia network
+2. Connect wallet and switch to desired network
 3. Request test USDC
 4. Confirm token receipt
 
 #### Manually Adding USDC Token:
 If wallet doesn't automatically display USDC, add manually:
 ```
+# Ethereum Sepolia
 Token Contract Address: 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238
 Token Symbol: USDC
 Decimals: 6
+
+# Base Sepolia
+Token Contract Address: 0x036CbD53842c5426634e7929541eC2318f3dCF7e
+Token Symbol: USDC
+Decimals: 6
 ```
+
+### 4.3 Obtaining Solana Test Tokens
+
+#### Recommended Wallet for Solana:
+- **Phantom Wallet**: https://phantom.app/
+
+#### Solana Devnet Test SOL:
+- **Solana Faucet**: https://faucet.solana.com/
+- **Solana CLI Faucet**: `solana airdrop 2 <YOUR_WALLET_ADDRESS> --url devnet`
+
+#### Solana Test USDC (SPL Token):
+- **Official Faucet**: https://faucet.circle.com/
+- **Devnet Token Mint**: Available through Circle's test faucet
+
+#### Steps for Solana:
+1. Install Phantom Wallet browser extension
+2. Create a new wallet or import existing one
+3. Switch network to "Devnet" in wallet settings
+4. Visit Solana faucet and request test SOL
+5. Use Circle faucet to obtain test USDC (SPL Token)
 
 ---
 
@@ -191,10 +233,10 @@ GOOGLE_GENAI_USE_VERTEXAI=FALSE
 GOOGLE_API_KEY=your_gemini_api_key_here
 
 # =============================================================================
-# Blockchain Network Configuration
+# Blockchain Network Configuration (EVM Chains)
 # =============================================================================
 
-# Network Selection (SEPOLIA or BASE_SEPOLIA)
+# Network Selection (SEPOLIA, BASE_SEPOLIA, POLYGON_AMOY, BNB_TESTNET)
 CHAIN_SELECTION=SEPOLIA
 
 # Ethereum Sepolia Configuration
@@ -202,23 +244,56 @@ SEPOLIA_CHAIN_ID_HEX=0xaa36a7
 SEPOLIA_CHAIN_RPC_URL=https://sepolia.infura.io/v3/YOUR_INFURA_PROJECT_ID
 SEPOLIA_USDC_ADDRESS=0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238
 
-# Base Sepolia Configuration (Alternative)
+# Base Sepolia Configuration
 BASE_SEPOLIA_CHAIN_ID_HEX=0x14a34
 BASE_SEPOLIA_CHAIN_RPC_URL=https://sepolia.base.org
 BASE_SEPOLIA_USDC_ADDRESS=0x036CbD53842c5426634e7929541eC2318f3dCF7e
+
+# Polygon Amoy Configuration
+POLYGON_AMOY_CHAIN_ID_HEX=0x13882
+POLYGON_AMOY_CHAIN_RPC_URL=https://rpc-amoy.polygon.technology/
+POLYGON_AMOY_USDC_ADDRESS=0x41e94eb019c0762f9bfcf9fb1e58725bfb0e7582
+
+# BNB Chain Testnet Configuration
+BNB_TESTNET_CHAIN_ID_HEX=0x61
+BNB_TESTNET_CHAIN_RPC_URL=https://data-seed-prebsc-1-s1.binance.org:8545/
+BNB_TESTNET_USDC_ADDRESS=0x64544969ed7ebf5f083679233325356ebe738930
+
+# =============================================================================
+# Solana Network Configuration
+# =============================================================================
+
+# Solana Network Selection (DEVNET or TESTNET)
+SOLANA_NETWORK=DEVNET
+
+# Solana RPC Configuration
+SOLANA_RPC_URL=https://api.devnet.solana.com
+SOLANA_USDC_MINT=4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU
+
+# Solana Account Private Key (Base58 encoded)
+SOLANA_PAYER_PRIVATE_KEY=your_base58_private_key_here
+SOLANA_SETTLEMENT_PRIVATE_KEY=your_base58_private_key_here
 
 # =============================================================================
 # Account Private Key Configuration (⚠️ For Test Networks Only)
 # =============================================================================
 
-# Payer Private Key - Used for signing Permit authorization
+# EVM Payer Private Key - Used for signing Permit authorization
 PAYER_PRIVATE_KEY=0x0000000000000000000000000000000000000000000000000000000000000000
 
-# Settlement Private Key - Used for executing final transfer
+# EVM Settlement Private Key - Used for executing final transfer
 SETTLEMENT_PRIVATE_KEY=0x0000000000000000000000000000000000000000000000000000000000000000
 
 # Alternative Private Key Configuration Name
 OWNER_PK=0x0000000000000000000000000000000000000000000000000000000000000000
+
+# =============================================================================
+# Database Configuration (PostgreSQL)
+# =============================================================================
+
+# Database Connection
+DATABASE_URL=postgresql://username:password@localhost:5432/zen7_payment
+DB_ECHO=FALSE
 
 # =============================================================================
 # Server Configuration

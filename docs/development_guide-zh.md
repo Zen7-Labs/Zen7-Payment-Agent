@@ -98,12 +98,17 @@ Copy-Item .env.example .env -Force
 | `SPENDER_WALLET_ADDRESS` | ✅ | 授权花费方的钱包地址 |
 | `ZEN7_PAYMENT_SERVER_HOST` | ✅ | FastAPI 服务绑定地址（默认 `localhost`） |
 | `ZEN7_PAYMENT_SERVER_PORT` | ✅ | FastAPI 服务端口（默认 `8080`） |
-| `CHAIN_SELECTION` | ✅ | 目标区块链网络（`SEPOLIA` 或 `BASE_SEPOLIA`） |
+| `CHAIN_SELECTION` | ✅ | 目标区块链网络（`SEPOLIA`、`BASE_SEPOLIA`、`POLYGON_AMOY`、`BNB_TESTNET`） |
 | `SEPOLIA_CHAIN_RPC_URL` | ✅ | Ethereum Sepolia RPC 端点（Infura/Alchemy） |
 | `SEPOLIA_USDC_ADDRESS` | ✅ | 测试网 USDC 合约地址 |
-| `SEPOLIA_DAI_ADDRESS` | ⬜ | 测试网 DAI 合约地址（若使用 DAI） |
 | `BASE_SEPOLIA_CHAIN_RPC_URL` | ⬜ | Base Sepolia RPC 端点（若使用 Base 网络） |
 | `BASE_SEPOLIA_USDC_ADDRESS` | ⬜ | Base Sepolia USDC 合约地址 |
+| `POLYGON_AMOY_CHAIN_RPC_URL` | ⬜ | Polygon Amoy RPC 端点（若使用 Polygon） |
+| `BNB_TESTNET_CHAIN_RPC_URL` | ⬜ | BNB Chain Testnet RPC 端点（若使用 BNB） |
+| `SOLANA_NETWORK` | ⬜ | Solana 网络选择（`DEVNET` 或 `TESTNET`） |
+| `SOLANA_RPC_URL` | ⬜ | Solana RPC 端点（若使用 Solana） |
+| `SOLANA_PAYER_PRIVATE_KEY` | ⬜ | Solana 付款方私钥（Base58 编码） |
+| `DATABASE_URL` | ⬜ | PostgreSQL 数据库连接字符串 |
 | `NOTIFICATION_URL` | ⬜ | 支付结果回调通知地址 |
 | `ACTIVE_TOKEN` | ✅ | 当前使用的支付代币（`USDC` 或 `DAI`） |
 
@@ -208,20 +213,30 @@ flowchart TD
 
 1. **Payer Agent**（`host_agent/sub_agents/payer_agent/`）
    - 创建包含订单号、支付金额、预算、有效期、币种等信息的支付请求
-   - 生成用于授权的 EIP-712 签名
+   - 根据区块链类型生成 EIP-712 或 Solana 签名
    - 校验钱包余额与 nonce
    - 将支付提交给清算流程
 
 2. **Settlement Agent**（`host_agent/sub_agents/settlement_agent/`）
    - 确认支付详情（预算、有效期、币种）
-   - 执行链上清算交易
-   - 监控交易状态与确认数
+   - 执行链上交易（EVM 或 Solana）
+   - 监控交易状态
    - 清算成功后通知收款方代理
 
 3. **Payee Agent**（`host_agent/sub_agents/payee_agent/`）
    - 接收清算通知
    - 确认订单创建
    - 通知支付发起方流程完成
+
+4. **Order Agent**（`host_agent/sub_agents/order_agent/`）
+   - 处理订单相关查询
+   - 执行意图识别用于路由
+   - 管理订单生命周期
+
+5. **Allowance Agent**（`host_agent/sub_agents/allowance_agent/`）
+   - 查询代币授权额度
+   - 支持多链授权额度检查
+   - 返回当前批准金额
 
 #### 2.2.2 协议适配器
 
