@@ -5,6 +5,9 @@
 [![Built with uv](https://img.shields.io/badge/Built%20with-uv-purple.svg)](https://github.com/astral-sh/uv)
 [中文版本](README-zh.md)
 
+Real-time progress updates can be viewed on page  https://zen7.gitbook.io/zen7-docs/
+
+
 Zen7 Payment Agent is the first practical implementation of DePA (Decentralized Payment Agent), pioneering the next generation of intelligent payment infrastructure. It not only fully implements the core functionalities of DePA but also successfully deploys innovative application cases in the agentic commerce domain.
 
 As the first practical project in the DePA ecosystem, Zen7 implements several key features: automated encrypted payments between agents, a "permissionless authorization" mechanism, and LLM-driven intent recognition and interaction.
