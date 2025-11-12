@@ -5,7 +5,8 @@
 [![Built with uv](https://img.shields.io/badge/Built%20with-uv-purple.svg)](https://github.com/astral-sh/uv)
 [中文版本](README-zh.md)
 
-Real-time progress updates can be viewed on page  https://zen7.gitbook.io/zen7-docs/
+Real-time progress updates can be viewed on page  (https://zen7.gitbook.io/zen7-docs/)
+For support on the x402 protocol, please [click here]（https://zen7.gitbook.io/zen7-docs/#id-3.2-payment-protocol-support-eip-2612-and-x402）
 
 
 Zen7 Payment Agent is the first practical implementation of DePA (Decentralized Payment Agent), pioneering the next generation of intelligent payment infrastructure. It not only fully implements the core functionalities of DePA but also successfully deploys innovative application cases in the agentic commerce domain.
