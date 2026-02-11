@@ -1,0 +1,929 @@
+manifest:
+  version: "0.1.3"
+  schema: https://a2as.org/cert/schema
+  subject:
+    name: zen7-labs/zen7-payment-agent
+    source: https://github.com/zen7-labs/zen7-payment-agent
+    branch: main
+    commit: "09bbc162"
+    scope: [a2a_server/__main__.py, a2a_server/agent.py, dao/model.py, host_agent/agent.py, host_agent/sub_agents/allowance_agent/__init__.py,
+      host_agent/sub_agents/allowance_agent/agent.py, host_agent/sub_agents/order_agent/__init__.py, host_agent/sub_agents/order_agent/agent.py,
+      host_agent/sub_agents/payee_agent/__init__.py, host_agent/sub_agents/payee_agent/agent.py, host_agent/sub_agents/payer_agent/__init__.py,
+      host_agent/sub_agents/payer_agent/agent.py, host_agent/sub_agents/settlement_agent/__init__.py, host_agent/sub_agents/settlement_agent/agent.py,
+      log.py, main.py, server.py, services/audit_event.py, services/blockchain_errors.py, services/custodial/transfer_handler.py,
+      services/intent.py, services/non_custodial/execute_permit.py, services/order/order_service.py, task_manager/task_scoped_manager.py,
+      utils.py]
+  issued:
+    by: A2AS.org
+    at: '2026-02-11T16:30:47Z'
+    url: https://a2as.org/certified/agents/zen7-labs/zen7-payment-agent
+  signatures:
+    digest: sha256:wraDHPTaZI5C6RNnkBZWQrDtXXFp4WzBO2QGnrYTXoo
+    key: ed25519:wD533TaGna7CyFg8AnFaiLsrf4mnPSSAWwclvoSfmOI
+    sig: ed25519:2D-ueQHnz7wGoTokG7wG2GBm62RcLT4mSzdxTYqaaSqi1ppNoDAJAVXzWiQRKlcz_qvVbMMVL6cTnlLJpjqrDQ
+
+agents:
+  allowance_agent:
+    type: instance
+    models: [gemini-2.0-flash-lite]
+    tools: [get_allowance]
+    params:
+      name: QueryAllowanceAgent
+      instruction: [Your goal is help user get allowance by owner wallet address., 'Your responsibilites are:', '- Use tool
+          ''get_allowance'' to get allowance by owner wallet address, MUST return in JSON format.', e.g., '{', '"allowance":
+          <allowance>,', '"owner_wallet_address": <owner>', '}']
+  host_agent:
+    type: instance
+    models: [gemini-2.0-flash-lite]
+    tools: [initialize_payment_or_query_orders]
+    params:
+      name: GeneralPaymentAgent
+      instruction: [You are a helpful assistant help user initialize payment or query orders., 'You capabilities are:', '-
+          Use tool ''initialize_payment_or_query_orders'' by identifying intent of the input_message for which indicate initializing
+          a payment, querying order or getting allowance issues.', '- If the input_message mentioned about both order number,
+          spend amount, budget amount, expiration date, currency and chain that indicate to initialize a payment.', '- If
+          the input_message ONLY mentioned order number that indicate to query order.', '- If the input_message ONLY mentioned
+          getting allowance that indicate to get allowance.', '- Immediate make decision, tranfer to the target agent and
+          automatical start the process, DO NOT make any confirmation.']
+      sub_agents: [payment_agent, order_agent, allowance_agent]
+  order_agent:
+    type: instance
+    models: [gemini-2.0-flash-lite]
+    tools: [get_order, get_payer_order_list]
+    params:
+      name: QueryOrderAgent
+      instruction: [Your goal is help user query order by order number or get payer order list by owner wallet address., 'Your
+          responsibilites are:', '- Use tool ''get_order'' to get order RETURN THE DETAILS of the result by the provided order
+          number.', '- Use tool ''get_payer_order_list'' to get order list RETURN THE DETAILS of the result by the provided
+          owner wallet address.']
+  payee_agent:
+    type: instance
+    models: [gemini-2.0-flash-lite]
+    tools: [receive_notification]
+    params:
+      name: payee_agent
+      description: Payee agent for the zen7 payment to handle payee operations.
+      instruction: [You are the payee agent for the zen7 payment to receive notification from settlement agent when finished.,
+        'Your capabilities are:', '- Use tool ''receive_notification'' to receive notification when settlement has finished.',
+        '- SHOULD keep the order number in return message in order to help user futher to get order detail.', '**Interaction
+          History:**', <interaction_history>, '{interaction_history}', </interaction_history>]
+  payer_agent:
+    type: instance
+    models: [gemini-2.0-flash-lite]
+    tools: [create_payment]
+    params:
+      name: payer_agent
+      description: Payer agent for the zen7 payment to handle payment issues.
+      instruction: [You are the payer agent for the zen7 payment to handle payment issues., 'Your role is to help users create
+          payment based on order number, spend amount, budget, expiration date, currency and chain for USDC or DAI.', Your
+          responsibility is to, '- Create the payment by asking for order number, spend amount, budget, expiration date, currency
+          for USDC or DAI and chain for the payment authorization.', 'Please make sure the payer agent to the settlement agent
+          is a continuation step:', '- DO NOT give any confirmation, CONTINUE to invoke settlement agent and proceed settlement
+          for this payment.', '- DO NOT wait for confirmation when the message says "will guide," "will help," "will initialize,"
+          "will start," or "will invoke." Instead, make sure to continue calling the settlement agent until the payment is
+          processed.', '**Payer information:**', 'order number: {order_number}', 'spend amount: {spend_amount}', 'budget:
+          {budget}', 'expiration date: {expiration_date}', 'currency: {currency}', 'chain: {chain}', '**Interaction History:**',
+        <interaction_history>, '{interaction_history}', </interaction_history>]
+  payment_agent:
+    type: instance
+    params:
+      name: PaymentAgentPipeline
+      description: Payment agent pipeline for zen7 payment service
+      sub_agents: [payer_agent, settlement_agent, payee_agent]
+  process_with_content_agent:
+    type: instance
+    models: [gemini-2.0-flash-lite]
+    tools: [proceed_payment_or_settlement_or_order_or_allowance_details]
+    params:
+      name: process_with_content
+      description: Process by invoking tool with provided detail info
+      instruction: [Your goal is to ALWAYS USE tool 'proceed_payment_or_settlement_or_order_or_allowance_details' to CONVEY
+          ANY input messages., '***Core capabilities***', 1. Do not modify content submitted to the tool "proceed_payment_or_settlement_or_order_or_allowance_details",
+        2. The return message MUST be returned as its PRIMITIVE CONTENT AND PATTERN]
+  settlement_agent:
+    type: instance
+    models: [gemini-2.0-flash-lite]
+    tools: [receive_payer_payment, settle_payment, notify_payee]
+    params:
+      name: settlement_agent
+      description: Settlement agent for the zen7 payment settlement operations
+      instruction: [You are a settlement agent for the zen7 payment settlement operations., Your role is to help users finish
+          settlement, 'Your responsibilities are:', '- Immediately settle the payment created by payer agent.', '- IF ANYTHING
+          NEED TO CONFIRM, DO NOT ASK TO CONFIRM, INSTEAD, IMMEDIATELY PROCEED THE SETTLEMENT', '- SHOULD notify payee agent
+          with settlement notification ONLY IF the settlement has proceeded successfully.', '- If settlement was failed, reply
+          the status and error message.', '**Interaction History:**', <interaction_history>, '{interaction_history}', </interaction_history>]
+
+models:
+  gemini-2.0-flash-lite:
+    type: literal
+    agents: [host_agent, payer_agent, payee_agent, settlement_agent, process_with_content_agent, allowance_agent, order_agent]
+
+tools:
+  create_payment:
+    type: function
+    agents: [payer_agent]
+    params:
+      description: Create payment for payer.
+  get_allowance:
+    type: function
+    agents: [allowance_agent]
+  get_order:
+    type: function
+    agents: [order_agent]
+  get_payer_order_list:
+    type: function
+    agents: [order_agent]
+  initialize_payment_or_query_orders:
+    type: function
+    agents: [host_agent]
+  notify_payee:
+    type: function
+    agents: [settlement_agent]
+    params:
+      description: Notify payee agent for reply that the settlement has finished on chain.
+  proceed_payment_or_settlement_or_order_or_allowance_details:
+    type: function
+    agents: [process_with_content_agent]
+  receive_notification:
+    type: function
+    agents: [payee_agent]
+    params:
+      description: Receive settlement notification for payee from settlement agent
+  receive_payer_payment:
+    type: function
+    agents: [settlement_agent]
+    params:
+      description: Receive payment request from payer agent
+  settle_payment:
+    type: function
+    agents: [settlement_agent]
+    params:
+      description: Settle the zen7 payment for the payer.
+
+teams:
+  host_agent:
+    type: hierarchy
+    agents: [host_agent, payment_agent, order_agent, allowance_agent]
+  payment_agent:
+    type: sequential
+    agents: [payment_agent, payer_agent, settlement_agent, payee_agent]
+
+imports:
+  A2AStarletteApplication: a2a.server.apps.A2AStarletteApplication
+  ABC: abc.ABC
+  abstractmethod: abc.abstractmethod
+  Account: eth_account.Account
+  AccountMeta: solders.instruction.AccountMeta
+  add_audit_event: dao.app.add_audit_event
+  add_intent: dao.app.add_intent
+  add_or_update_order_item: services.order.order_service.add_or_update_order_item
+  add_settlement_batch: dao.app.add_settlement_batch
+  add_user_query_to_history: utils.add_user_query_to_history
+  ADKAgentExecutor: agent_executor.ADKAgentExecutor
+  Agent: google.adk.agents.Agent
+  AgentCapabilities: a2a.types.AgentCapabilities
+  AgentCard: a2a.types.AgentCard
+  AgentSkill: a2a.types.AgentSkill
+  allowance_agent: agent.allowance_agent
+  Annotated: typing.Annotated
+  Any: typing.Any
+  AssetID: constants.AssetID
+  ASSOCIATED_TOKEN_PROGRAM_ID: spl.token.constants.ASSOCIATED_TOKEN_PROGRAM_ID
+  AsyncClient: solana.rpc.async_api.AsyncClient
+  asynccontextmanager: contextlib.asynccontextmanager
+  asyncio: asyncio
+  AuditEvent: model.AuditEvent
+  AuditEventType: dao.model.AuditEventType
+  base64: base64
+  BaseModel: pydantic.BaseModel
+  BaseTransferHandler: services.non_custodial.base_handler.BaseTransferHandler
+  BIGINT: sqlalchemy.dialects.postgresql.BIGINT
+  BlockchainErrorClassifier: services.blockchain_errors.BlockchainErrorClassifier
+  call_agent_async: utils.call_agent_async
+  CHAIN_ID: services.CHAIN_ID
+  CHAIN_RPC_URL: services.CHAIN_RPC_URL
+  ChainID: constants.ChainID
+  click: click
+  collect_audit_event: services.audit_event.collect_audit_event
+  collect_intent: services.intent.collect_intent
+  collect_settlement_batch: services.settlment_batch.collect_settlement_batch
+  collect_settlement_detail: services.settlement_detail.collect_settlement_detail
+  Column: sqlalchemy.Column
+  config: logging.config
+  Confirmed: solana.rpc.commitment.Confirmed
+  convert_to_local_timezone: utils.convert_to_local_timezone
+  create_associated_token_account: spl.token.instructions.create_associated_token_account
+  create_engine: sqlmodel.create_engine
+  create_handler: services.non_custodial.execute_permit.create_handler
+  create_sepolia_handler: services.custodial.transfer_handler.create_sepolia_handler
+  DATE: sqlalchemy.dialects.postgresql.DATE
+  date: datetime.date
+  datetime: datetime.datetime
+  db_url: db_url
+  Decimal: decimal.Decimal
+  DefaultRequestHandler: a2a.server.request_handlers.DefaultRequestHandler
+  Depends: fastapi.Depends
+  Dict: typing.Dict
+  encode_typed_data: eth_account.messages.encode_typed_data
+  engine: database.engine
+  Enum: enum.Enum
+  ErrorCode: constants.ErrorCode
+  Event: google.adk.events.Event
+  EVM_CHAIN_CONFIGS: services.non_custodial.evm_transfer_handler.CHAIN_CONFIGS
+  EVM_CHAIN_CONFIGS_EXPORT: services.non_custodial.evm_transfer_handler.CHAIN_CONFIGS
+  EVM_TOKEN_CONFIGS: services.non_custodial.evm_transfer_handler.TOKEN_CONFIGS
+  EVM_TOKEN_CONFIGS_EXPORT: services.non_custodial.evm_transfer_handler.TOKEN_CONFIGS
+  EVMTransferHandler: services.non_custodial.evm_transfer_handler.EVMTransferHandler
+  execute_permit: services.non_custodial.execute_permit.execute_permit
+  ExecutePermitRequest: services.non_custodial.execute_permit.ExecutePermitRequest
+  FastAPI: fastapi.FastAPI
+  Field: sqlmodel.Field
+  FunctionTool: google.adk.tools.FunctionTool
+  get_associated_token_address: spl.token.instructions.get_associated_token_address
+  get_localzone: tzlocal.get_localzone
+  get_order_item: services.order.order_service.get_order_item
+  get_order_list_by_user: services.order.order_service.get_order_list_by_user
+  getLogger: logging.getLogger
+  Hash: solders.hash.Hash
+  host_agent: host_agent.agent.host_agent
+  InMemorySessionService: google.adk.sessions.InMemorySessionService
+  InMemoryTaskStore: a2a.server.tasks.InMemoryTaskStore
+  Instruction: solders.instruction.Instruction
+  Intent: model.Intent
+  is_valid_date_format: utils.is_valid_date_format
+  json: json
+  JSONB: sqlalchemy.dialects.postgresql.JSONB
+  Keypair: solders.keypair.Keypair
+  ListSessionsResponse: google.adk.sessions.base_session_service.ListSessionsResponse
+  LlmAgent: google.adk.agents.LlmAgent
+  load_dotenv: dotenv.load_dotenv
+  logger: log.logger
+  logging: logging
+  main: __main__.main
+  Message: solders.message.Message
+  NUMERIC: sqlalchemy.dialects.postgresql.NUMERIC
+  Optional: typing.Optional
+  order_agent: agent.order_agent
+  OrderItem: model.OrderItem
+  os: os
+  payee_agent: agent.payee_agent
+  payer_agent: agent.payer_agent
+  PaymentService: payment_service.PaymentService
+  PayoutInstruction: model.PayoutInstruction
+  pg_dao: dao.app
+  PG_ENUM: sqlalchemy.dialects.postgresql.ENUM
+  PG_UUID: sqlalchemy.dialects.postgresql.UUID
+  process_with_content_agent: agent.process_with_content_agent
+  Pubkey: solders.pubkey.Pubkey
+  pytz: pytz
+  re: re
+  Relationship: sqlmodel.Relationship
+  Request: fastapi.Request
+  requests: requests
+  Runner: google.adk.runners.Runner
+  select: sqlmodel.select
+  SequentialAgent: google.adk.agents.SequentialAgent
+  Session: sqlmodel.Session
+  settlement_agent: agent.settlement_agent
+  SettlementBatch: model.SettlementBatch
+  SettlementBatchStatus: dao.model.SettlementBatchStatus
+  SettlementDetail: model.SettlementDetail
+  SettlementDetailStatus: dao.model.SettlementDetailStatus
+  sign: services.execute_sign.sign
+  sign_solana_transfer: services.execute_sign_solana.sign_solana_transfer
+  Signature: solders.signature.Signature
+  SMALLINT: sqlalchemy.dialects.postgresql.SMALLINT
+  SOLANA_CHAIN_CONFIGS: services.non_custodial.solana_transfer_handler.CHAIN_CONFIGS
+  SOLANA_TOKEN_CONFIGS: services.non_custodial.solana_transfer_handler.TOKEN_CONFIGS
+  SolanaTransferHandler: services.non_custodial.solana_transfer_handler.SolanaTransferHandler
+  SourceEvent: dao.model.SourceEvent
+  SQLModel: sqlmodel.SQLModel
+  StreamHandler: logging.StreamHandler
+  sys: sys
+  TaskScopedServiceManager: task_manager.task_scoped_manager.TaskScopedServiceManager
+  TEXT: sqlalchemy.dialects.postgresql.TEXT
+  timedelta: datetime.timedelta
+  TIMESTAMP: sqlalchemy.dialects.postgresql.TIMESTAMP
+  TOKEN_ABI: services.non_custodial.evm_transfer_handler.TOKEN_ABI
+  TOKEN_PROGRAM_ID: spl.token.constants.TOKEN_PROGRAM_ID
+  TokenDecimals: constants.TokenDecimals
+  ToolContext: google.adk.tools.ToolContext
+  traceback: traceback
+  Transaction: solders.transaction.Transaction
+  transfer_checked: spl.token.instructions.transfer_checked
+  transfer_from: services.non_custodial.execute_permit.transfer_from
+  TransferCheckedParams: spl.token.instructions.TransferCheckedParams
+  TransferFromRequest: services.non_custodial.execute_permit.TransferFromRequest
+  TransferHandler: services.non_custodial.evm_transfer_handler.EVMTransferHandler
+  Tuple: typing.Tuple
+  types: google.genai.types
+  USDC_ADDRESS: services.USDC_ADDRESS
+  uuid: uuid
+  uuid4: uuid.uuid4
+  uvicorn: uvicorn
+  VARCHAR: sqlalchemy.dialects.postgresql.VARCHAR
+  Web3: web3.Web3
+
+functions:
+  __init__:
+    type: sync
+    module: server
+    args: [self, APP_NAME, session_service, runner]
+  add_agent_response_to_history:
+    type: async
+    module: utils
+    args: [session_service, app_name, user_id, session_id, agent_name, response]
+  add_audit_event:
+    type: sync
+    module: dao.app
+    args: [audit_event, intent]
+    params:
+      returns: dict
+  add_intent:
+    type: sync
+    module: dao.app
+    args: [intent]
+    params:
+      returns: dict
+  add_or_update_order_item:
+    type: sync
+    module: services.order.order_service
+    args: [order_number, user_id, spend_amount, budget, currency, chain, deadline, status, status_message]
+  add_payout_instruction:
+    type: sync
+    module: dao.app
+    args: [settlement_batch, payout_instruction]
+  add_settlement_batch:
+    type: sync
+    module: dao.app
+    args: [settlement_batch, settlement_detail]
+  add_user_query_to_history:
+    type: async
+    module: utils
+    args: [session_service, app_name, user_id, session_id, query]
+  call_agent_async:
+    type: async
+    module: utils
+    args: [runner, user_id, session_id, query]
+    params:
+      returns: dict
+  chat:
+    type: async
+    module: server
+    args: [request, service]
+  check_allowance:
+    type: async
+    module: services.non_custodial.base_handler
+    args: [self, owner_address]
+    params:
+      returns: Dict
+  check_usdc_balance:
+    type: async
+    module: services.custodial.transfer_handler
+    args: [self]
+    params:
+      returns: Dict
+  classify_error:
+    type: sync
+    module: services.blockchain_errors
+    args: [cls, error_message]
+    params:
+      returns: Optional[BlockchainErrorCode]
+  cleanup:
+    type: async
+    module: task_manager.payment_service
+    args: [self]
+  close:
+    type: async
+    module: services.non_custodial.solana_transfer_handler
+    args: [self]
+  code:
+    type: sync
+    module: services.blockchain_errors
+    args: [self]
+    params:
+      returns: str
+  collect_audit_event:
+    type: sync
+    module: services.audit_event
+    args: [session_id, chain, event_type, owner_address, spender_address, amount, tx_hash, signature, nonce, intent]
+    params:
+      returns: dict
+  collect_intent:
+    type: sync
+    module: services.intent
+    args: [session_id, chain, payer_address, payee_address, amount, deadline, status]
+  collect_settlement_batch:
+    type: sync
+    module: services.settlment_batch
+    args: [settlement_detail, chain, tenant_id, period_start, period_end, total_count, total_amount, payee_address, merchant_id,
+      check_date, fee_total, net_total, settlement_status]
+    params:
+      returns: dict
+  collect_settlement_detail:
+    type: sync
+    module: services.settlement_detail
+    args: [chain, gross_amount, fee_amount, net_amount, source_event, settlement_detail_status, session_id, tx_hash, payer_address,
+      payee_address, settled_at]
+    params:
+      returns: SettlementDetail
+  convert_to_local_timezone:
+    type: sync
+    module: utils
+    args: [dt, source_tz]
+    params:
+      returns: datetime
+  create_db_and_tables:
+    type: sync
+    module: dao.database
+  create_error_response:
+    type: sync
+    module: services.blockchain_errors
+    args: [error_message, additional_context]
+    params:
+      returns: Dict
+  create_handler:
+    type: sync
+    module: services.non_custodial.transfer_handler
+    args: [network, token]
+    params:
+      returns: Optional[BaseTransferHandler]
+  create_payment:
+    type: async
+    module: host_agent.sub_agents.payer_agent.agent
+    args: [order_number, spend_amount, budget, expiration_date, currency, chain, tool_context]
+    params:
+      returns: dict
+  create_sepolia_handler:
+    type: sync
+    module: services.custodial.transfer_handler
+  create_success_response:
+    type: sync
+    module: services.blockchain_errors
+    args: [message]
+    params:
+      returns: Dict
+  desc:
+    type: sync
+    module: services.blockchain_errors
+    args: [self]
+    params:
+      returns: str
+  display_state:
+    type: async
+    module: utils
+    args: [session_service, app_name, user_id, session_id, label]
+  do_permit_and_transfer:
+    type: async
+    module: task_manager.payment_service
+    args: [self, session_id, chain]
+    params:
+      returns: Dict
+  execute_permit:
+    type: async
+    module: services.non_custodial.execute_permit
+    args: [permit_request]
+  execute_permit_and_transfer:
+    type: async
+    module: task_manager.task_scoped_manager
+    args: [cls, session_id, chain, wallet_address]
+    params:
+      returns: dict
+  execute_sign:
+    type: async
+    module: task_manager.task_scoped_manager
+    args: [cls, session_id, wallet_address, payload]
+    params:
+      returns: dict
+  execute_transfer_from:
+    type: async
+    module: services.non_custodial.base_handler
+    args: [self, owner_address, amount]
+    params:
+      returns: Dict
+  fetch_nonce:
+    type: sync
+    module: services.execute_sign
+    args: [owner_addr, token_address, w3]
+    params:
+      returns: int
+  fetch_token_balance:
+    type: sync
+    module: services.execute_sign
+    args: [owner_addr, token_address, w3]
+    params:
+      returns: int
+  flush:
+    type: sync
+    module: log
+    args: [self]
+  get_allowance:
+    type: async
+    module: host_agent.sub_agents.allowance_agent.agent
+    args: [owner_wallet_address, tool_context]
+    params:
+      returns: dict
+  get_deadline_ts:
+    type: sync
+    module: services.execute_sign
+    args: [deadline_iso_str]
+    params:
+      returns: int
+  get_error_category:
+    type: sync
+    module: services.blockchain_errors
+    args: [cls, error_code]
+    params:
+      returns: ErrorCategory
+  get_eth_balance:
+    type: async
+    module: services.custodial.transfer_handler
+    args: [self, address]
+    params:
+      returns: float
+  get_native_balance:
+    type: async
+    module: services.non_custodial.base_handler
+    args: [self, address]
+    params:
+      returns: float
+  get_order:
+    type: sync
+    module: host_agent.sub_agents.order_agent.agent
+    args: [order_number, tool_context]
+    params:
+      returns: dict
+  get_order_item:
+    type: sync
+    module: services.order.order_service
+    args: [order_number]
+    params:
+      returns: dict
+  get_order_list_by_user:
+    type: sync
+    module: services.order.order_service
+    args: [user_id]
+    params:
+      returns: list[dict]
+  get_order_status:
+    type: async
+    module: server
+    args: [request]
+  get_payer_order_list:
+    type: sync
+    module: host_agent.sub_agents.order_agent.agent
+    args: [owner_wallet_address, tool_context]
+    params:
+      returns: dict
+  get_protocol_type:
+    type: sync
+    module: services.non_custodial.base_handler
+    args: [self]
+    params:
+      returns: str
+  get_shared_resources:
+    type: sync
+    module: server
+    args: [self]
+    params:
+      returns: Tuple
+  get_shared_service:
+    type: sync
+    module: server
+    params:
+      returns: AppWideService
+  get_token_name_onchain:
+    type: sync
+    module: services.execute_sign
+    args: [token_address, w3]
+    params:
+      returns: str
+  get_transaction_status:
+    type: async
+    module: services.non_custodial.execute_permit
+    args: [tx_hash, network, token]
+  get_transfer_handler:
+    type: sync
+    module: services.custodial.transfer_handler
+  initialize_payment_or_query_orders:
+    type: sync
+    module: host_agent.agent
+    args: [input_message, tool_context]
+    params:
+      returns: str
+  is_retryable:
+    type: sync
+    module: services.blockchain_errors
+    args: [cls, error_code]
+    params:
+      returns: bool
+  is_valid_date_format:
+    type: sync
+    module: utils
+    args: [date_string, date_format]
+  lifespan:
+    type: async
+    module: server
+    args: [app]
+  main:
+    type: sync
+    module: a2a_server.__main__
+    args: [host, port]
+  main_async:
+    type: async
+    module: main
+  notify_payee:
+    type: sync
+    module: host_agent.sub_agents.settlement_agent.agent
+    args: [tool_context]
+    params:
+      returns: dict
+  parse_error:
+    type: sync
+    module: services.blockchain_errors
+    args: [cls, error_message]
+    params:
+      returns: Dict
+  permit_and_transfer:
+    type: async
+    module: task_manager.payment_service
+    args: [session_id, chain, owner_wallet_address, budget_amount, spend_amount, deadline, v, r, s]
+    params:
+      returns: Dict
+  permit_and_transfer_for_solana_devnet:
+    type: async
+    module: task_manager.payment_service
+    args: [session_id, owner_wallet_address, budget_amount, spend_amount, deadline, signature, payer, payee]
+    params:
+      returns: Dict
+  proceed_payment_or_settlement_or_order_or_allowance_details:
+    type: sync
+    module: a2a_server.agent
+    args: [content, tool_context]
+  process_agent_response:
+    type: async
+    module: utils
+    args: [event]
+    params:
+      returns: dict
+  receive_notification:
+    type: sync
+    module: host_agent.sub_agents.payee_agent.agent
+    args: [tool_context]
+    params:
+      returns: dict
+  receive_payer_payment:
+    type: sync
+    module: host_agent.sub_agents.settlement_agent.agent
+    args: [tool_context]
+    params:
+      returns: dict
+  release_instance:
+    type: async
+    module: task_manager.task_scoped_manager
+    args: [cls, session_id, wallet_address]
+  reset:
+    type: async
+    module: server
+    args: [request, service]
+  settle_payment:
+    type: async
+    module: host_agent.sub_agents.settlement_agent.agent
+    args: [tool_context]
+    params:
+      returns: dict
+  sign:
+    type: sync
+    module: services.execute_sign
+    args: [budget, deadline, network, token]
+  sign_for_payment:
+    type: async
+    module: task_manager.payment_service
+    args: [self]
+    params:
+      returns: Optional[Dict]
+  sign_solana_transfer:
+    type: async
+    module: services.execute_sign_solana
+    args: [network, token, amount]
+    params:
+      returns: Tuple
+  simulate_permit:
+    type: sync
+    module: services.custodial.transfer_handler
+    args: [self, owner, spender, value, deadline, v, r, s]
+  to_uint256:
+    type: sync
+    module: services.execute_sign
+    args: [n]
+    params:
+      returns: int
+  transfer_from:
+    type: async
+    module: services.non_custodial.execute_permit
+    args: [req]
+  update_interaction_history:
+    type: async
+    module: utils
+    args: [session_service, app_name, user_id, session_id, entry]
+  write:
+    type: sync
+    module: log
+    args: [self, message]
+
+variables:
+  ACTIVE_TOKEN:
+    type: env
+    params:
+      caller: [os.getenv]
+      path: [services]
+  BASE_SEPOLIA_CHAIN_ID:
+    type: env
+    params:
+      caller: [os.getenv]
+      path: [services]
+  BASE_SEPOLIA_CHAIN_ID_HEX:
+    type: env
+    params:
+      caller: [os.getenv]
+      path: [services]
+  BASE_SEPOLIA_RPC_URL:
+    type: env
+    params:
+      caller: [os.getenv]
+      path: [services.non_custodial.evm_transfer_handler, services, services.execute_sign]
+  BASE_SEPOLIA_USDC_ADDRESS:
+    type: env
+    params:
+      caller: [os.getenv]
+      path: [services.non_custodial.evm_transfer_handler, services, services.execute_sign]
+  BNBChain_Testnet_CHAIN_ID:
+    type: env
+    params:
+      caller: [os.getenv]
+      path: [services]
+  BNBChain_Testnet_CHAIN_ID_HEX:
+    type: env
+    params:
+      caller: [os.getenv]
+      path: [services]
+  BNBChain_Testnet_RPC_URL:
+    type: env
+    params:
+      caller: [os.getenv]
+      path: [services.non_custodial.evm_transfer_handler, services, services.execute_sign]
+  BNBChain_Testnet_USDC_ADDRESS:
+    type: env
+    params:
+      caller: [os.getenv]
+      path: [services.non_custodial.evm_transfer_handler, services, services.execute_sign]
+  CHAIN_SELECTION:
+    type: env
+    params:
+      caller: [os.getenv]
+      path: [services]
+  FEE_PAYER_ADDRESS:
+    type: env
+    params:
+      caller: [os.getenv]
+      path: [services.execute_sign_solana]
+  FEE_PAYER_KEY:
+    type: env
+    params:
+      caller: [os.getenv]
+      path: [services.non_custodial.solana_transfer_handler]
+  NOTIFICATION_URL:
+    type: env
+    params:
+      caller: [os.getenv]
+      path: [host_agent.sub_agents.settlement_agent.agent]
+  OWNER_PK:
+    type: env
+    params:
+      caller: [os.getenv]
+      path: [services.execute_sign]
+  OWNER_WALLET_ADDRESS:
+    type: env
+    params:
+      caller: [os.getenv]
+      path: [host_agent.sub_agents.payer_agent.agent, host_agent.sub_agents.settlement_agent.agent]
+  PAYEE_ADDRESS:
+    type: env
+    params:
+      caller: [os.getenv]
+      path: [services.non_custodial.solana_transfer_handler, services.execute_sign_solana]
+  PAYEE_WALLET_ADDRESS:
+    type: env
+    params:
+      caller: [os.getenv]
+      path: [services.non_custodial.evm_transfer_handler]
+  PAYER_PRIVATE_KEY:
+    type: env
+    params:
+      caller: [os.getenv]
+      path: [services.custodial.transfer_handler, services.execute_sign]
+  PRIVATE_KEY:
+    type: env
+    params:
+      caller: [os.getenv]
+      path: [services.non_custodial.evm_transfer_handler]
+  SEPOLIA_CHAIN_ID:
+    type: env
+    params:
+      caller: [os.getenv]
+      path: [services]
+  SEPOLIA_CHAIN_ID_HEX:
+    type: env
+    params:
+      caller: [os.getenv]
+      path: [services]
+  SEPOLIA_DAI_ADDRESS:
+    type: env
+    params:
+      caller: [os.getenv]
+      path: [services.non_custodial.evm_transfer_handler, services, services.execute_sign]
+  SEPOLIA_RPC_URL:
+    type: env
+    params:
+      caller: [os.getenv]
+      path: [services.non_custodial.evm_transfer_handler, services, services.execute_sign]
+  SEPOLIA_USDC_ADDRESS:
+    type: env
+    params:
+      caller: [os.getenv]
+      path: [services.non_custodial.evm_transfer_handler, services, services.execute_sign]
+  SETTLEMENT_MODE:
+    type: env
+    params:
+      caller: [os.getenv]
+      path: [host_agent.sub_agents.allowance_agent.agent, task_manager.payment_service]
+  SOLANA_DEVNET_RPC_URL:
+    type: env
+    params:
+      caller: [os.getenv]
+      path: [services.non_custodial.solana_transfer_handler, services.execute_sign_solana]
+  SOLANA_PAYEE_ADDRESS:
+    type: env
+    params:
+      caller: [os.getenv]
+      path: [services.non_custodial.solana_transfer_handler]
+  SOLANA_PAYER_PRIVATE_KEY:
+    type: env
+    params:
+      caller: [os.getenv]
+      path: [services.execute_sign_solana]
+  SPENDER_KEY:
+    type: env
+    params:
+      caller: [os.getenv]
+      path: [services.non_custodial.evm_transfer_handler, services.custodial.transfer_handler]
+  SPENDER_WALLET_ADDRESS:
+    type: env
+    params:
+      caller: [os.getenv]
+      path: [host_agent.sub_agents.payer_agent.agent, services.execute_sign, host_agent.sub_agents.settlement_agent.agent,
+        task_manager.payment_service]
+  token:
+    type: env
+    params:
+      caller: [permit_and_transfer_for_solana_devnet]
+  ZEN7_PAYMENT_AGENT_CARD_URL:
+    type: env
+    params:
+      caller: [os.getenv]
+      path: [a2a_server.__main__]
+  ZEN7_PAYMENT_SERVER_HOST:
+    type: env
+    params:
+      caller: [os.getenv]
+      path: [a2a_server.__main__, a2a_server.agent, server]
+  ZEN7_PAYMENT_SERVER_PORT:
+    type: env
+    params:
+      caller: [os.getenv]
+      path: [a2a_server.__main__, a2a_server.agent, server]
+
+files:
+  errors.log:
+    type: pattern
+    actions: [read]
+    params:
+      caller: [os.path.join]
+      pattern: [LOG_DIR, errors.log]
+  server.log:
+    type: pattern
+    actions: [read]
+    params:
+      caller: [os.path.join]
+      pattern: [LOG_DIR, server.log]
+
+networks:
+  zen7_payment_server_base_url:
+    type: api
+    actions: [GET]
+    protocols: [http]
+    ports: ["80"]
+    params:
+      pattern: http://{zen7_payment_server_host}:{zen7_payment_server_port}
+      dynamic: "True"
+      variable: zen7_payment_server_base_url
