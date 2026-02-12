@@ -332,7 +332,7 @@ Notify Payee Agent → Create Order → Return Confirmation
 | `run.ps1` | PowerShell Script | Windows-compatible orchestration script |
 | `pyproject.toml` | Dependency Management | Project metadata and dependency specification (managed by `uv`) |
 | `requirements.txt` | Legacy Dependencies | Traditional pip requirements file (maintained for compatibility) |
-| `init.sql` | Database Schema | PostgreSQL database initialization script |
+| `dao/sql/init.sql` | Database Schema | PostgreSQL database initialization script |
 | `dao/` | Data Access Layer | Database models and access interfaces |
 | `task_manager/` | Task Management | Payment service and task scope management |
 
