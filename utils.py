@@ -190,7 +190,7 @@ async def call_agent_async(runner: Runner, user_id: str, session_id: str, query:
     logger.info(f"{Colors.YELLOW}{'-' * 30}{Colors.RESET}")
     return resp_body
 
-def is_valid_date_format(date_string, date_format='%Y-%m-%d'):
+def is_valid_date_format(date_string: str, date_format: str = '%Y-%m-%d') -> bool:
     """
     Checks if a given string matches the specified date format.
 

@@ -31,7 +31,7 @@ from dao.model import (
 )
 # Business logic services for recording data
 from services.settlement_detail import collect_settlement_detail
-from services.settlment_batch import collect_settlement_batch
+from services.settlement_batch import collect_settlement_batch
 from datetime import datetime
 
 # Backend/Spender configuration

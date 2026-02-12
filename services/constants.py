@@ -5,8 +5,29 @@ ChainID = {
     "polygon": "eip155:137",
     "base_sepolia": "eip155:84532",
     "sepolia": "eip155:11155111",
-    "bnbtestnet": "eip155:27",
+    "bnbtestnet": "eip155:97",
     "solana-devnet": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1"
+}
+
+ChainConfig = {
+    "sepolia": {
+        "chain_id": 11155111,
+        "chain_id_hex": "0xaa36a7",
+        "name": "Sepolia",
+        "native_currency": "ETH"
+    },
+    "basesepolia": {
+        "chain_id": 84532,
+        "chain_id_hex": "0x14a34",
+        "name": "Base Sepolia",
+        "native_currency": "ETH"
+    },
+    "bnbtestnet": {
+        "chain_id": 97,
+        "chain_id_hex": "0x61",
+        "name": "BNB Chain Testnet",
+        "native_currency": "BNB"
+    }
 }
 
 AssetID = {
